@@ -1,0 +1,64 @@
+
+`include "alu_if.vh"
+`include "cpu_types_pkg.vh"
+import cpu_types_pkg::*;
+
+module alu (
+  alu_if aluif
+  );
+  
+always_comb begin
+  casez(aluif.alu_op)
+    ALU_SLL : begin
+      aluif.port_o = aluif.port_a << aluif.port_b;
+      aluif.overflow = 0;
+    end
+    ALU_SRL : begin
+      aluif.port_o = aluif.port_a >> aluif.port_b;
+      aluif.overflow = 0;
+    end
+    ALU_ADD : begin
+      aluif.port_o = aluif.port_a + aluif.port_b;
+      aluif.overflow = (aluif.port_a[31] == aluif.port_b[31]) ? 
+                              ((aluif.port_o[31] != aluif.port_a[31]) ? 1: 0) : 0;
+    end
+    ALU_SUB : begin
+      aluif.port_o = aluif.port_a - aluif.port_b;
+      aluif.overflow = (aluif.port_a[31] != aluif.port_b[31]) ? 
+                              ((aluif.port_o[31] != aluif.port_a[31]) ? 1 : 0) : 0;
+    end
+    ALU_AND : begin
+      aluif.port_o = aluif.port_a & aluif.port_b;
+      aluif.overflow = 0;
+    end
+    ALU_OR : begin
+      aluif.port_o = aluif.port_a | aluif.port_b;
+      aluif.overflow = 0;      
+    end
+    ALU_XOR : begin
+      aluif.port_o = aluif.port_a ^ aluif.port_b;
+      aluif.overflow = 0;
+    end
+    ALU_NOR : begin
+      aluif.port_o = ~(aluif.port_a | aluif.port_b);
+      aluif.overflow = 0;
+    end
+    ALU_SLT : begin
+      aluif.port_o = $signed(aluif.port_a) < $signed(aluif.port_b);
+      aluif.overflow = 0;
+    end
+    ALU_SLTU : begin
+      aluif.port_o = aluif.port_a < aluif.port_b;
+      aluif.overflow = 0;
+    end
+    default : begin
+      aluif.port_o = '0;
+      aluif.overflow = 0;
+    end
+  endcase
+
+aluif.negative = (aluif.port_o < 0);
+aluif.zero = aluif.port_o ? 0 : 1;
+
+end
+endmodule
