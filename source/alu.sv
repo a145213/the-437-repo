@@ -48,7 +48,7 @@ always_comb begin
       aluif.overflow = 0;
     end
     ALU_SLTU : begin
-      aluif.port_o = aluif.port_a < aluif.port_b;
+      aluif.port_o = $unsigned(aluif.port_a) < $unsigned(aluif.port_b);
       aluif.overflow = 0;
     end
     default : begin
@@ -57,7 +57,7 @@ always_comb begin
     end
   endcase
 
-aluif.negative = (aluif.port_o < 0);
+aluif.negative = aluif.port_o[WORD_W-1];
 aluif.zero = aluif.port_o ? 0 : 1;
 
 end
