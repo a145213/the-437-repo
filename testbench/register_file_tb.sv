@@ -28,7 +28,7 @@ module register_file_tb;
   // interface
   register_file_if rfif ();
   // test program
-  test PROG ();
+  test PROG (CLK, nRST, rfif);
   // DUT
 `ifndef MAPPED
   register_file DUT(CLK, nRST, rfif);
@@ -48,5 +48,71 @@ module register_file_tb;
 
 endmodule
 
-program test;
+program test (
+  input logic CLK,
+  output logic nRST,
+  register_file_if.tb rfif_tb
+);
+  
+initial begin
+  parameter PERIOD = 10;
+  nRST = 0;
+  #(PERIOD);
+  nRST = 1;
+  #(PERIOD);
+  
+  //asynchronous reset test
+  rfif_tb.WEN = 1;
+  rfif_tb.rsel1 = 0;
+  rfif_tb.rsel2 = 0;
+  for (int i = 0; i < 32; i++) begin
+    rfif_tb.wsel = i;
+    rfif_tb.wdat = i;
+    #(PERIOD)
+    if (rfif_tb.rdat1 == 0)
+      $display("nRST PASSED");
+    else
+      $display("nRST FAILED");
+  end
+  
+  //write test
+  #(PERIOD)
+  rfif_tb.WEN = 1;
+  for (int i = 0; i < 32; i++) begin
+    rfif_tb.wsel = i;
+    rfif_tb.wdat = i + 1;
+    
+    #(PERIOD);
+  end
+  
+  rfif_tb.WEN = 0;
+  #(PERIOD);
+    
+  for (int i = 0; i < 32; i++) begin
+    rfif.rsel1 = i;
+    rfif.rsel2 = i;
+    #(PERIOD)
+    if (rfif_tb.rsel1 == 0) begin
+      if (rfif_tb.rdat1 == 0)
+        $display ("rdat1 Location 0 PASSED");
+      else $display("rdat1 Location 0 FAILED");
+    end
+    else if (rfif_tb.rdat1 == i + 1)
+      $display("Reading rdat1 %d PASSED", i);
+    else $diplay("Reading rdat1 %d FAILED", i);
+    
+    if (rfif_tb.rsel2 == 0) begin
+      if (rfif_tb.rdat2 == 0)
+        $display ("rdat2 Location 0 PASSED");
+      else $display("rdat2 Location 0 FAILED");
+    end
+    else if (rfif_tb.rdat2 == i + 1)
+      $display("Reading rdat2 %d PASSED", i);
+    else $diplay("Reading rdat2 %d FAILED", i);
+    
+    #(PERIOD);
+    
+  end
+end  
 endprogram
+
