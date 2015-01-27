@@ -18,7 +18,7 @@ parameter PC0 = 0;
   // bus interface
   datapath_cache_if         dcif ();
   // coherence interface
-  cache_control_if           ccif ();
+  cache_control_if    #(.CPUID(0))       ccif ();
 
   // map datapath
   datapath #(.PC_INIT(PC0)) DP (CLK, nRST, dcif);

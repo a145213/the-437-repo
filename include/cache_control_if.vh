@@ -19,6 +19,7 @@ interface cache_control_if;
 
   // access with cpuid on each processor
   parameter CPUS = 2;
+  parameter CPUID = 0;
 
   // arbitration
   logic   [CPUS-1:0]       iwait, dwait, iREN, dREN, dWEN;
@@ -58,7 +59,7 @@ interface cache_control_if;
   );
 
   // icache ports to controller
-  modport icache (
+  /*modport icache (
     input   iwait, iload,
     output  iREN, iaddr
   );
@@ -75,7 +76,52 @@ interface cache_control_if;
             ccwait, ccinv, ccsnoopaddr,
     output  iREN, iaddr, dREN, dWEN, daddr, dstore,
             ccwrite, cctrans
-  );
+  );*/
+
+  modport caches (
+    input   .iwait(iwait[CPUID]), 
+    input   .iload(iload[CPUID]),
+    input   .dwait(dwait[CPUID]), 
+    input   .dload(dload[CPUID]),
+    input   .ccwait(ccwait[CPUID]),
+    input   .ccinv(ccinv[CPUID]),
+    input   .ccsnoopaddr(ccsnoopaddr[CPUID]),
+
+    output  .iREN(iREN[CPUID]),
+    output  .iaddr(iaddr[CPUID]),
+    output  .dREN(dREN[CPUID]),
+    output  .dWEN(dWEN[CPUID]),
+    output  .daddr(daddr[CPUID]),
+    output  .dstore(dstore[CPUID]),
+    output  .ccwrite(ccwrite[CPUID]),
+    output  .cctrans(cctrans[CPUID])   
+);
+
+  modport icache (
+    input   .iwait(iwait[CPUID]), 
+    input   .iload(iload[CPUID]),
+
+    output  .iREN(iREN[CPUID]),
+    output  .iaddr(iaddr[CPUID])  
+);
+
+  modport dcache (
+    input   .dwait(dwait[CPUID]), 
+    input   .dload(dload[CPUID]),
+    input   .ccwait(ccwait[CPUID]),
+    input   .ccinv(ccinv[CPUID]),
+    input   .ccsnoopaddr(ccsnoopaddr[CPUID]),
+
+    output  .dREN(dREN[CPUID]),
+    output  .dWEN(dWEN[CPUID]),
+    output  .daddr(daddr[CPUID]),
+    output  .dstore(dstore[CPUID]),
+    output  .ccwrite(ccwrite[CPUID]),
+    output  .cctrans(cctrans[CPUID])   
+);
+
+
+
 endinterface
 
 `endif //CACHE_CONTROL_IF_VH
