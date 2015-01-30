@@ -22,20 +22,17 @@ module memory_control (
   // number of cpus for cc
   parameter CPUS = 2;
 
-assign ccif.iload = ccif.ramload;
-assign ccif.dload = ccif.ramload;
-assign ccif.ramstore = ccif.dstore;
-
-//assign ccif.ramWEN = ccif.dWEN;
-//assign ccif.ramREN = ccif.dREN ? 1: (ccif.iREN & ~ccif.dWEN);
+assign ccif.iload[0] = ccif.ramload;
+assign ccif.dload[0] = ccif.ramload;
+assign ccif.ramstore = ccif.dstore[0];
 
 always_comb begin
   ccif.iwait[0] = 0;
   ccif.dwait[0] = 0;
   casez(ccif.ramstate)
     FREE: begin
-      ccif.iwait[0] = 0;
-      ccif.dwait[0] = 0;
+      ccif.iwait[0] = ccif.iREN[0];
+      ccif.dwait[0] = ccif.dWEN[0] || ccif.dREN[0];
     end
     BUSY: begin
       ccif.iwait[0] = 1;

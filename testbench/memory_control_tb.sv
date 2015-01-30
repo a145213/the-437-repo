@@ -132,7 +132,7 @@ program test (
     ccif.daddr = i << 2;
     ccif.dREN = 1;
     repeat (4) @(posedge CLK);
-    if (ccif.dload === 0)
+    if (ccif.dload[0] === 0)
       continue;
     values = {8'h04,16'(i),8'h00,ccif.ramload};
     foreach (values[j])
