@@ -26,33 +26,56 @@ assign ccif.iload = ccif.ramload;
 assign ccif.dload = ccif.ramload;
 assign ccif.ramstore = ccif.dstore;
 
+//assign ccif.ramWEN = ccif.dWEN;
+//assign ccif.ramREN = ccif.dREN ? 1: (ccif.iREN & ~ccif.dWEN);
+
 always_comb begin
-  ccif.iwait = 0;
-  ccif.dwait = 0;
+  ccif.iwait[0] = 0;
+  ccif.dwait[0] = 0;
   casez(ccif.ramstate)
     FREE: begin
-      ccif.iwait = 0;
-      ccif.dwait = 0;
+      ccif.iwait[0] = 0;
+      ccif.dwait[0] = 0;
     end
     BUSY: begin
-      ccif.iwait = 1;
-      ccif.dwait = 1;
+      ccif.iwait[0] = 1;
+      ccif.dwait[0] = 1;
     end
     ACCESS: begin
       if (ccif.dWEN[0] || ccif.dREN[0]) begin
-        ccif.iwait = 1;
-        ccif.dwait = 0;
+        ccif.iwait[0] = 1;
+        ccif.dwait[0] = 0;
       end
       else if (ccif.iREN[0]) begin
-        ccif.iwait = 0;
-        ccif.dwait = 1;
+        ccif.iwait[0] = 0;
+        ccif.dwait[0] = 1;
       end
     end
     ERROR: begin
-    ccif.iwait = 1;
-    ccif.dwait = 1;
+    ccif.iwait[0] = 1;
+    ccif.dwait[0] = 1;
     end
   endcase
 end
+
+always_comb begin
+  ccif.ramWEN = 0;
+  ccif.ramREN = 0;
+  ccif.ramaddr = 0;
+
+  if (ccif.dREN[0] == 1) begin
+    ccif.ramREN[0] = 1;
+    ccif.ramaddr = ccif.daddr;
+  end
+  else if (ccif.dWEN[0] == 1) begin
+    ccif.ramWEN[0] = 1;
+    ccif.ramaddr = ccif.daddr;
+  end
+  else if (ccif.iREN[0] == 1) begin
+    ccif.ramREN[0] = 1;
+    ccif.ramaddr = ccif.iaddr;
+  end
+end
+
 
 endmodule
