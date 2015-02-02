@@ -48,6 +48,8 @@ module datapath (
   word_t Jump_out;
   logic [2:0] JAL_in;
 
+  assign dpif.halt = 0;
+
   // control unit
   assign cuif.opcode = opcode_t'(dpif.imemload[31:26]);
   assign cuif.funct = funct_t'(dpif.imemload[5:0]);
