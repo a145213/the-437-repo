@@ -42,14 +42,15 @@ module datapath (
   pc PC (CLK, nRST, pcif);
   control_unit CU (cuif);
   request_unit RU (CLK, nRST, ruif);
+  sign_extender SE(seif);
+  alu ALU (aluif);
 
   word_t shift_left;
   word_t pc, pc_add_4, pc_src_out, pc_shift;
   word_t Jump_out;
-  logic [2:0] JAL_in;
+  word_t JAL_in;
 
-  assign dpif.halt = 0;
-
+  assign dpif.halt = cuif.halt;
   // control unit
   assign cuif.opcode = opcode_t'(dpif.imemload[31:26]);
   assign cuif.funct = funct_t'(dpif.imemload[5:0]);
@@ -57,12 +58,29 @@ module datapath (
   // request unit
   assign ruif.dhit = dpif.dhit;
   assign ruif.ihit = dpif.ihit;
-  assign ruif.iREN = cuif.iREN;
+  //assign cuif.iREN = 1;
+  assign ruif.iREN = cuif.iREN || dpif.ihit;
   assign ruif.dWEN = cuif.dWEN;
   assign ruif.dREN = cuif.dREN;
-  assign dpif.imemREN = ruif.imemREN;
+  //assign dpif.imemREN = ruif.imemREN;
   assign dpif.dmemREN = ruif.dmemREN;
   assign dpif.dmemWEN = ruif.dmemWEN;
+  assign dpif.imemaddr = pc;
+  
+  assign dpif.imemREN = 1;
+  /*
+  always_comb begin
+    if (cuif.halt) begin
+      dpif.imemREN = 0;
+    end
+    else begin
+      dpif.imemREN = 1;
+    end
+  end
+*/
+  // sign extender
+  assign seif.ExtOp = cuif.ExtOp;
+
   // register file
   assign rfif.rsel1 = dpif.imemload[25:21];
   assign rfif.rsel2 = dpif.imemload[20:16];
@@ -77,14 +95,17 @@ module datapath (
   end
 
   // ALU
+  assign aluif.alu_op = cuif.alu_op;
   assign aluif.port_a = rfif.rdat1;
   assign dpif.dmemaddr = aluif.port_o;
 
   always_comb begin
-    if (cuif.ALUSrc)
+    if (cuif.ALUSrc == 1)
       aluif.port_b = seif.data_out;
-    else
+    else if (cuif.ALUSrc == 0)
       aluif.port_b = rfif.rdat2;
+    else
+      aluif.port_b = {27'h0000000,dpif.imemload[10:6]};
   end
 
   // shamt mux
@@ -96,7 +117,7 @@ module datapath (
   end
   
   // adder and PC
-  assign pcif.PC_WEN = cuif.PC_WEN;
+  assign pcif.PC_WEN = ruif.PC_WEN;
   assign shift_left = seif.data_out << 2;
   assign pc = pcif.pc_output;
 

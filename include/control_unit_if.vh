@@ -26,7 +26,7 @@ interface control_unit_if;
   // mux select ALU operand
   logic [1:0] ALUSrc;
   // mux select jump
-  logic [2:0] Jal;
+  logic [1:0] Jal;
   logic [1:0] Jump;
 
   // register write enable
@@ -40,7 +40,7 @@ interface control_unit_if;
   // alu zero flag
   logic alu_zero;
   // PC enable
-  logic PC_WEN;
+  //logic PC_WEN;
 
   // alu opcode
   aluop_t alu_op;
@@ -50,14 +50,14 @@ interface control_unit_if;
     input opcode, funct, alu_zero, overflow,
     output halt, iREN, dREN, dWEN, RegDst, MemToReg, 
     shamt, PCSrc, ALUSrc, Jump, RegWrite, 
-    MemWrite, MemRead, ExtOp, alu_op, Jal, PC_WEN
+    MemWrite, MemRead, ExtOp, alu_op, Jal
   );
 
   modport tb (
     output opcode, funct, alu_zero, overflow,
     input halt, iREN, dREN, dWEN, RegDst, MemToReg, 
     shamt, PCSrc, ALUSrc, Jump, RegWrite, 
-    MemWrite, MemRead, ExtOp, alu_op, Jal, PC_WEN
+    MemWrite, MemRead, ExtOp, alu_op, Jal
   );
 
 endinterface

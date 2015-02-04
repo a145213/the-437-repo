@@ -11,10 +11,16 @@ interface request_unit_if;
 	logic dmemREN, dmemWEN, imemREN;
 	logic ihit, dhit;
 	logic dWEN, dREN, iREN;
+	logic PC_WEN;
 
 	modport ru (
 		input ihit, dhit, dREN, dWEN, iREN,
-		output dmemREN, dmemWEN, imemREN
+		output dmemREN, dmemWEN, imemREN, PC_WEN
+	);
+
+	modport tb (
+		output ihit, dhit, dREN, dWEN, iREN,
+		input dmemREN, dmemWEN, imemREN, PC_WEN
 	);
 
 endinterface

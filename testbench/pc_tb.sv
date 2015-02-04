@@ -48,9 +48,9 @@ module pc_tb;
 
 
     if (pcif_tb.pc_output != 0)
-      $display("PASSED");
+      $display("PC PASSED");
     else
-      $display("FAILED");
+      $display("PC FAILED");
 
     #(PERIOD);
     nRST = 0;

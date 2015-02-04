@@ -21,7 +21,7 @@ module caches (
   // import types
   import cpu_types_pkg::word_t;
 
-//  parameter CPUID = 0;
+  parameter CPUID = 0;
 
   word_t instr;
   word_t daddr;

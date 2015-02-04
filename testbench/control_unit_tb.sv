@@ -63,7 +63,7 @@ module control_unit_tb;
     if (cuif_tb.RegDst == 1 && cuif_tb.RegWrite == 1 && cuif_tb.ALUSrc == 0
         && cuif_tb.MemToReg == 0 && cuif_tb.shamt == 0 && cuif_tb.Jal == 1
         && cuif_tb.Jump == 0 && cuif_tb.PCSrc == 1 && cuif_tb.ExtOp == 0
-        && cuif_tb.PC_WEN == 1 && cuif_tb.halt == 0)
+        && cuif_tb.halt == 0)
       $display("ADDU PASSED");
     else $display("ADDU FAILED");
 
@@ -72,7 +72,7 @@ module control_unit_tb;
     if (cuif_tb.RegDst == 1 && cuif_tb.RegWrite == 1 && cuif_tb.ALUSrc == 0
         && cuif_tb.MemToReg == 0 && cuif_tb.shamt == 0 && cuif_tb.Jal == 1
         && cuif_tb.Jump == 0 && cuif_tb.PCSrc == 1 && cuif_tb.ExtOp == 0
-        && cuif_tb.PC_WEN == 1 && cuif_tb.halt == 0)
+        && cuif_tb.halt == 0)
       $display("ADD  PASSED");
     else $display("ADD  FAILED");
 
@@ -81,8 +81,7 @@ module control_unit_tb;
     #(1)
     if (cuif_tb.RegDst == 1 && cuif_tb.RegWrite == 1 && cuif_tb.ALUSrc == 0
         && cuif_tb.MemToReg == 0 && cuif_tb.shamt == 0 && cuif_tb.Jal == 1
-        && cuif_tb.Jump == 0 && cuif_tb.PCSrc == 1 && cuif_tb.ExtOp == 0
-        && cuif_tb.PC_WEN == 1)
+        && cuif_tb.Jump == 0 && cuif_tb.PCSrc == 1 && cuif_tb.ExtOp == 0)
       $display("AND  PASSED");
     else $display("AND  FAILED");
 
@@ -91,8 +90,7 @@ module control_unit_tb;
     #(1)
     if (cuif_tb.RegDst == 1 && cuif_tb.RegWrite == 1 && cuif_tb.ALUSrc == 0
         && cuif_tb.MemToReg == 0 && cuif_tb.shamt == 0 && cuif_tb.Jal == 1
-        && cuif_tb.Jump == 1 && cuif_tb.PCSrc == 1 && cuif_tb.ExtOp == 0
-        && cuif_tb.PC_WEN == 1)
+        && cuif_tb.Jump == 1 && cuif_tb.PCSrc == 1 && cuif_tb.ExtOp == 0)
       $display("JR   PASSED");
     else $display("JR   FAILED");
 
@@ -102,7 +100,7 @@ module control_unit_tb;
     if (cuif_tb.RegDst == 1 && cuif_tb.RegWrite == 1 && cuif_tb.ALUSrc == 0
         && cuif_tb.MemToReg == 0 && cuif_tb.shamt == 0 && cuif_tb.Jal == 1
         && cuif_tb.Jump == 0 && cuif_tb.PCSrc == 1 && cuif_tb.ExtOp == 0
-        && cuif_tb.PC_WEN == 1 && cuif_tb.halt ==  0)
+        && cuif_tb.halt ==  0)
       $display("NOR  PASSED");
     else $display("NOR  FAILED");
 
@@ -111,7 +109,7 @@ module control_unit_tb;
     if (cuif_tb.RegDst == 1 && cuif_tb.RegWrite == 1 && cuif_tb.ALUSrc == 0
         && cuif_tb.MemToReg == 0 && cuif_tb.shamt == 0 && cuif_tb.Jal == 1
         && cuif_tb.Jump == 0 && cuif_tb.PCSrc == 1 && cuif_tb.ExtOp == 0
-        && cuif_tb.PC_WEN == 1 && cuif_tb.halt == 0)
+        && cuif_tb.halt == 0)
       $display("OR   PASSED");
     else $display("OR   FAILED");
 
@@ -120,7 +118,7 @@ module control_unit_tb;
     if (cuif_tb.RegDst == 1 && cuif_tb.RegWrite == 1 && cuif_tb.ALUSrc == 0
         && cuif_tb.MemToReg == 0 && cuif_tb.shamt == 0 && cuif_tb.Jal == 1
         && cuif_tb.Jump == 0 && cuif_tb.PCSrc == 1 && cuif_tb.ExtOp == 0
-        && cuif_tb.PC_WEN == 1 && cuif_tb.halt == 0)
+        && cuif_tb.halt == 0)
       $display("SLT  PASSED");
     else $display("SLT  FAILED");
 
@@ -129,37 +127,36 @@ module control_unit_tb;
     if (cuif_tb.RegDst == 1 && cuif_tb.RegWrite == 1 && cuif_tb.ALUSrc == 0
         && cuif_tb.MemToReg == 0 && cuif_tb.shamt == 0 && cuif_tb.Jal == 1
         && cuif_tb.Jump == 0 && cuif_tb.PCSrc == 1 && cuif_tb.ExtOp == 0
-        && cuif_tb.PC_WEN == 1 && cuif_tb.halt == 0)
+        && cuif_tb.halt == 0)
       $display("SLTU PASSED");
     else $display("SLTU FAILED");
 
     #(1)
     cuif_tb.funct = SLL;
     #(1)
-    if (cuif_tb.RegDst == 1 && cuif_tb.RegWrite == 1 && cuif_tb.ALUSrc == 1
-        && cuif_tb.MemToReg == 0 && cuif_tb.shamt == 1 && cuif_tb.Jal == 1
+    if (cuif_tb.RegDst == 1 && cuif_tb.RegWrite == 1 && cuif_tb.ALUSrc == 2
+        && cuif_tb.MemToReg == 0 && cuif_tb.shamt == 0 && cuif_tb.Jal == 1
         && cuif_tb.Jump == 0 && cuif_tb.PCSrc == 1 && cuif_tb.ExtOp == 0
-        && cuif_tb.PC_WEN == 1 && cuif_tb.halt == 0)
+        && cuif_tb.halt == 0)
       $display("SLL  PASSED");
     else $display("SLL  FAILED");
     
     #(1)
     cuif_tb.funct = SRL;
-    #(1)
-    #(1)
-    if (cuif_tb.RegDst == 1 && cuif_tb.RegWrite == 1 && cuif_tb.ALUSrc == 1
-        && cuif_tb.MemToReg == 0 && cuif_tb.shamt == 1 && cuif_tb.Jal == 1
+
+    if (cuif_tb.RegDst == 1 && cuif_tb.RegWrite == 1 && cuif_tb.ALUSrc == 2
+        && cuif_tb.MemToReg == 0 && cuif_tb.shamt == 0 && cuif_tb.Jal == 1
         && cuif_tb.Jump == 0 && cuif_tb.PCSrc == 1 && cuif_tb.ExtOp == 0
-        && cuif_tb.PC_WEN == 1 && cuif_tb.halt == 0)
+        && cuif_tb.halt == 0)
       $display("SRL  PASSED");
     else $display("SRL  FAILED");
 
     #(1)
     cuif_tb.funct = SUBU;
-    if (cuif_tb.RegDst == 1 && cuif_tb.RegWrite == 1 && cuif_tb.ALUSrc == 1
-        && cuif_tb.MemToReg == 0 && cuif_tb.shamt == 1 && cuif_tb.Jal == 1
+    if (cuif_tb.RegDst == 1 && cuif_tb.RegWrite == 1 && cuif_tb.ALUSrc == 0
+        && cuif_tb.MemToReg == 0 && cuif_tb.shamt == 0 && cuif_tb.Jal == 1
         && cuif_tb.Jump == 0 && cuif_tb.PCSrc == 1 && cuif_tb.ExtOp == 0
-        && cuif_tb.PC_WEN == 1 && cuif_tb.halt == 0)
+        && cuif_tb.halt == 0)
       $display("SUBU PASSED");
     else $display("SUBU FAILED");
 
@@ -168,7 +165,7 @@ module control_unit_tb;
     if (cuif_tb.RegDst == 1 && cuif_tb.RegWrite == 1 && cuif_tb.ALUSrc == 0
         && cuif_tb.MemToReg == 0 && cuif_tb.shamt == 0 && cuif_tb.Jal == 1
         && cuif_tb.Jump == 0 && cuif_tb.PCSrc == 1 && cuif_tb.ExtOp == 0
-        && cuif_tb.PC_WEN == 1 && cuif_tb.halt == 0)
+        && cuif_tb.halt == 0)
       $display("SUB  PASSED");
     else $display("SUB  FAILED");
   
@@ -176,8 +173,7 @@ module control_unit_tb;
     cuif_tb.funct = XOR;
     if (cuif_tb.RegDst == 1 && cuif_tb.RegWrite == 1 && cuif_tb.ALUSrc == 0
         && cuif_tb.MemToReg == 0 && cuif_tb.shamt == 0 && cuif_tb.Jal == 1
-        && cuif_tb.Jump == 0 && cuif_tb.PCSrc == 1 && cuif_tb.ExtOp == 0
-        && cuif_tb.PC_WEN == 1)
+        && cuif_tb.Jump == 0 && cuif_tb.PCSrc == 1 && cuif_tb.ExtOp == 0)
       $display("XOR  PASSED");
     else $display("XOR  FAILED");
 
@@ -187,8 +183,7 @@ module control_unit_tb;
     #(1)
     if (cuif_tb.RegDst == 0 && cuif_tb.RegWrite == 0 && cuif_tb.ALUSrc == 0
         && cuif_tb.MemToReg == 0 && cuif_tb.shamt == 0 && cuif_tb.Jal == 1
-        && cuif_tb.Jump == 0 && cuif_tb.PCSrc == 0 && cuif_tb.ExtOp == 0
-        && cuif_tb.PC_WEN == 1)
+        && cuif_tb.Jump == 0 && cuif_tb.PCSrc == 0 && cuif_tb.ExtOp == 0)
       $display("BEQ  PASSED");
     else $display("BEQ  FAILED");
 
@@ -198,8 +193,7 @@ module control_unit_tb;
     #(1)
     if (cuif_tb.RegDst == 0 && cuif_tb.RegWrite == 0 && cuif_tb.ALUSrc == 0
         && cuif_tb.MemToReg == 0 && cuif_tb.shamt == 0 && cuif_tb.Jal == 1
-        && cuif_tb.Jump == 0 && cuif_tb.PCSrc == 0 && cuif_tb.ExtOp == 0
-        && cuif_tb.PC_WEN == 1)
+        && cuif_tb.Jump == 0 && cuif_tb.PCSrc == 0 && cuif_tb.ExtOp == 0)
       $display("BNE  PASSED");
     else $display("BNE  FAILED");
 
@@ -209,8 +203,7 @@ module control_unit_tb;
     #(1)
     if (cuif_tb.RegDst == 0 && cuif_tb.RegWrite == 1 && cuif_tb.ALUSrc == 1
         && cuif_tb.MemToReg == 0 && cuif_tb.shamt == 0 && cuif_tb.Jal == 1
-        && cuif_tb.Jump == 0 && cuif_tb.PCSrc == 1 && cuif_tb.ExtOp == 1
-        && cuif_tb.PC_WEN == 1)
+        && cuif_tb.Jump == 0 && cuif_tb.PCSrc == 1 && cuif_tb.ExtOp == 0)
       $display("ADDI PASSED");
     else $display("ADDI FAILED");
 
@@ -219,8 +212,7 @@ module control_unit_tb;
     #(1)
     if (cuif_tb.RegDst == 0 && cuif_tb.RegWrite == 1 && cuif_tb.ALUSrc == 1
         && cuif_tb.MemToReg == 0 && cuif_tb.shamt == 0 && cuif_tb.Jal == 1
-        && cuif_tb.Jump == 0 && cuif_tb.PCSrc == 1 && cuif_tb.ExtOp == 1
-        && cuif_tb.PC_WEN == 1)
+        && cuif_tb.Jump == 0 && cuif_tb.PCSrc == 1 && cuif_tb.ExtOp == 1)
       $display("ADDIU PASSED");
     else $display("ADDIU FAILED");
 
@@ -230,8 +222,7 @@ module control_unit_tb;
     #(1)
     if (cuif_tb.RegDst == 0 && cuif_tb.RegWrite == 1 && cuif_tb.ALUSrc == 1
         && cuif_tb.MemToReg == 0 && cuif_tb.shamt == 0 && cuif_tb.Jal == 1
-        && cuif_tb.Jump == 0 && cuif_tb.PCSrc == 1 && cuif_tb.ExtOp == 1
-        && cuif_tb.PC_WEN == 1)
+        && cuif_tb.Jump == 0 && cuif_tb.PCSrc == 1 && cuif_tb.ExtOp == 0)
       $display("ORI  PASSED");
     else $display("ORI  FAILED");
 
@@ -241,8 +232,7 @@ module control_unit_tb;
     #(1)
     if (cuif_tb.RegDst == 0 && cuif_tb.RegWrite == 1 && cuif_tb.ALUSrc == 1
         && cuif_tb.MemToReg == 0 && cuif_tb.shamt == 0 && cuif_tb.Jal == 1
-        && cuif_tb.Jump == 0 && cuif_tb.PCSrc == 1 && cuif_tb.ExtOp == 1
-        && cuif_tb.PC_WEN == 1)
+        && cuif_tb.Jump == 0 && cuif_tb.PCSrc == 1 && cuif_tb.ExtOp == 0)
       $display("XORI PASSED");
     else $display("XORI FAILED");
 
@@ -251,9 +241,8 @@ module control_unit_tb;
     cuif_tb.alu_zero = 1;
     #(1)
     if (cuif_tb.RegDst == 0 && cuif_tb.RegWrite == 1 && cuif_tb.ALUSrc == 1
-        && cuif_tb.MemToReg == 0 && cuif_tb.shamt == 0 && cuif_tb.Jal == 1
-        && cuif_tb.Jump == 0 && cuif_tb.PCSrc == 1 && cuif_tb.ExtOp == 1
-        && cuif_tb.PC_WEN == 1)
+        && cuif_tb.MemToReg == 0 && cuif_tb.shamt == 0 && cuif_tb.Jal == 2
+        && cuif_tb.Jump == 0 && cuif_tb.PCSrc == 1 && cuif_tb.ExtOp == 1)
       $display("LUI  PASSED");
     else $display("LUI  FAILED");
 
@@ -263,8 +252,7 @@ module control_unit_tb;
     #(1)
     if (cuif_tb.RegDst == 0 && cuif_tb.RegWrite == 1 && cuif_tb.ALUSrc == 1
         && cuif_tb.MemToReg == 1 && cuif_tb.shamt == 0 && cuif_tb.Jal == 1
-        && cuif_tb.Jump == 0 && cuif_tb.PCSrc == 1 && cuif_tb.ExtOp == 1
-        && cuif_tb.PC_WEN == 1)
+        && cuif_tb.Jump == 0 && cuif_tb.PCSrc == 1 && cuif_tb.ExtOp == 1)
       $display("LW   PASSED");
     else $display("LW   FAILED");
 
@@ -272,10 +260,9 @@ module control_unit_tb;
     cuif_tb.opcode = SW;
     cuif_tb.alu_zero = 1;
     #(1)
-    if (cuif_tb.RegDst == 0 && cuif_tb.RegWrite == 1 && cuif_tb.ALUSrc == 1
+    if (cuif_tb.RegDst == 1 && cuif_tb.RegWrite == 0 && cuif_tb.ALUSrc == 1
         && cuif_tb.MemToReg == 0 && cuif_tb.shamt == 0 && cuif_tb.Jal == 1
-        && cuif_tb.Jump == 0 && cuif_tb.PCSrc == 1 && cuif_tb.ExtOp == 1
-        && cuif_tb.PC_WEN == 1)
+        && cuif_tb.Jump == 0 && cuif_tb.PCSrc == 1 && cuif_tb.ExtOp == 1)
       $display("SW   PASSED");
     else $display("SW   FAILED");
 
@@ -285,8 +272,7 @@ module control_unit_tb;
     #(1)
     if (cuif_tb.RegDst == 0 && cuif_tb.RegWrite == 1 && cuif_tb.ALUSrc == 1
         && cuif_tb.MemToReg == 0 && cuif_tb.shamt == 0 && cuif_tb.Jal == 1
-        && cuif_tb.Jump == 2 && cuif_tb.PCSrc == 1 && cuif_tb.ExtOp == 1
-        && cuif_tb.PC_WEN == 1)
+        && cuif_tb.Jump == 2 && cuif_tb.PCSrc == 1 && cuif_tb.ExtOp == 1)
       $display("J    PASSED");
     else $display("J    FAILED");
 
@@ -296,8 +282,7 @@ module control_unit_tb;
     #(1)
     if (cuif_tb.RegDst == 0 && cuif_tb.RegWrite == 1 && cuif_tb.ALUSrc == 1
         && cuif_tb.MemToReg == 0 && cuif_tb.shamt == 0 && cuif_tb.Jal == 0
-        && cuif_tb.Jump == 2 && cuif_tb.PCSrc == 1 && cuif_tb.ExtOp == 1
-        && cuif_tb.PC_WEN == 1)
+        && cuif_tb.Jump == 2 && cuif_tb.PCSrc == 1 && cuif_tb.ExtOp == 1)
       $display("JAL  PASSED");
     else $display("JAL  FAILED");
 

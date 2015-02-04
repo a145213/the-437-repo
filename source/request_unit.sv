@@ -11,7 +11,8 @@ module request_unit
 
 import cpu_types_pkg::*;
 
-assign ruif.imemREN = 1;
+assign ruif.PC_WEN = ruif.ihit & !ruif.dhit;
+
 
 always_ff @ (posedge CLK, negedge nRST) begin
 	if (!nRST) begin
@@ -28,6 +29,8 @@ always_ff @ (posedge CLK, negedge nRST) begin
 			ruif.dmemWEN <= 0;
 		end
 	end
+	
+
 end
 
 endmodule
