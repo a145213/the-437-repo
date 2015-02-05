@@ -23,7 +23,6 @@ module control_unit
     cuif.ExtOp = 0;
     cuif.dWEN = 0;
     cuif.dREN = 0;
-    cuif.halt = 0;
     cuif.iREN = 0;
     cuif.alu_op = ALU_ADD;
   
@@ -88,8 +87,8 @@ module control_unit
       cuif.alu_op = ALU_SUB;
       cuif.RegWrite = 0;
       cuif.ALUSrc = 0;
-      cuif.ExtOp = 0;
-      if (cuif.alu_zero == 0)
+      cuif.ExtOp = 1;
+      if (cuif.alu_zero == 1)
         cuif.PCSrc = 0;
       else cuif.PCSrc = 1;
     end
@@ -97,8 +96,8 @@ module control_unit
       cuif.alu_op = ALU_SUB;
       cuif.RegWrite = 0;
       cuif.ALUSrc = 0;
-      cuif.ExtOp = 0;
-      if (cuif.alu_zero != 0)
+      cuif.ExtOp = 1;
+      if (cuif.alu_zero != 1)
         cuif.PCSrc = 0;
       else cuif.PCSrc = 1;
     end
@@ -142,8 +141,9 @@ module control_unit
     // J type
     J: cuif.Jump = 2;
     JAL: begin
-      cuif.Jump = 2;
       cuif.Jal = 0;
+      cuif.RegDst = 2;
+      cuif.Jump = 2;
     end
     default: cuif.alu_op = ALU_ADD;
   endcase

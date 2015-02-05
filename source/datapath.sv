@@ -47,14 +47,21 @@ module datapath (
 
   word_t shift_left;
   word_t pc, pc_add_4, pc_src_out, pc_shift;
-  word_t Jump_out;
+  //word_t Jump_out;
   word_t JAL_in;
 
-  assign dpif.halt = cuif.halt;
+  //assign dpif.halt = cuif.halt;
+  always_ff @ (posedge CLK, negedge nRST)begin
+    if (!nRST)
+      dpif.halt <= 0;
+    else if (cuif.halt)
+      dpif.halt <= 1;
+  end
+
   // control unit
   assign cuif.opcode = opcode_t'(dpif.imemload[31:26]);
   assign cuif.funct = funct_t'(dpif.imemload[5:0]);
-
+  assign cuif.alu_zero = aluif.zero;
   // request unit
   assign ruif.dhit = dpif.dhit;
   assign ruif.ihit = dpif.ihit;
@@ -68,6 +75,7 @@ module datapath (
   assign dpif.imemaddr = pc;
   
   assign dpif.imemREN = 1;
+
   /*
   always_comb begin
     if (cuif.halt) begin
@@ -76,8 +84,8 @@ module datapath (
     else begin
       dpif.imemREN = 1;
     end
-  end
-*/
+  end*/
+
   // sign extender
   assign seif.ExtOp = cuif.ExtOp;
 
@@ -88,10 +96,12 @@ module datapath (
   assign dpif.dmemstore = rfif.rdat2;
 
   always_comb begin
-    if (cuif.RegDst)
+    if (cuif.RegDst == 1)
       rfif.wsel = dpif.imemload[15:11];
-    else
+    else if (cuif.RegDst == 0)
       rfif.wsel = dpif.imemload[20:16];
+    else
+      rfif.wsel = 32'd31;
   end
 
   // ALU
@@ -146,7 +156,7 @@ module datapath (
     if (cuif.Jump == 0)
       pcif.pc_input = pc_src_out;
     else if (cuif.Jump == 1)
-      pcif.pc_input = rfif.rdat2;
+      pcif.pc_input = aluif.port_o;
     else
       pcif.pc_input = {pc_add_4[31:28],dpif.imemload[25:0],2'b00}; 
   end
@@ -162,7 +172,7 @@ module datapath (
   // Jal mux
   always_comb begin
     if (cuif.Jal == 0)
-      rfif.wdat = Jump_out;         // jump_out
+      rfif.wdat = pcif.pc_output + 4;         // jump_out
     else if (cuif.Jal == 1)
       rfif.wdat = JAL_in;
     else
