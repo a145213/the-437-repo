@@ -28,7 +28,11 @@ module register_file_tb;
   // interface
   register_file_if rfif ();
   // test program
+<<<<<<< HEAD
   test PROG (CLK, nRST, rfif);
+=======
+  test PROG ();
+>>>>>>> 7dabfc3f11bbd03f1d249da3c2c0e8ce18ffaab5
   // DUT
 `ifndef MAPPED
   register_file DUT(CLK, nRST, rfif);
@@ -48,6 +52,7 @@ module register_file_tb;
 
 endmodule
 
+<<<<<<< HEAD
 program test (
   input logic CLK,
   output logic nRST,
@@ -114,5 +119,8 @@ initial begin
     
   end
 end  
+=======
+program test;
+>>>>>>> 7dabfc3f11bbd03f1d249da3c2c0e8ce18ffaab5
 endprogram
 
