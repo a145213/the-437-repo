@@ -23,8 +23,8 @@ module caches (
 
   parameter CPUID = 0;
 
-  word_t instr;
-  word_t daddr;
+  //word_t instr;
+  //word_t daddr;
 
   // icache
   //icache  ICACHE(dcif, ccif);
@@ -32,6 +32,7 @@ module caches (
   //dcache  DCACHE(dcif, ccif);
 
   // single cycle instr saver (for memory ops)
+  /*
   always_ff @(posedge CLK)
   begin
     if (!nRST)
@@ -47,6 +48,7 @@ module caches (
       daddr <= dcif.dmemaddr;
     end
   end
+  */
   // dcache invalidate before halt
   assign dcif.flushed = dcif.halt;
 
@@ -57,7 +59,7 @@ module caches (
   //assign dcif.dmemload = ccif.dload[CPUID];
   assign dcif.ihit = (dcif.imemREN) ? ~ccif.iwait : 0;
   assign dcif.dhit = (dcif.dmemREN|dcif.dmemWEN) ? ~ccif.dwait : 0;
-  assign dcif.imemload = (ccif.iwait) ? instr : ccif.iload;
+  assign dcif.imemload = ccif.iload;
   assign dcif.dmemload = ccif.dload;
 
 
@@ -72,6 +74,6 @@ module caches (
   assign ccif.dWEN = dcif.dmemWEN;
   assign ccif.dstore = dcif.dmemstore;
   assign ccif.iaddr = dcif.imemaddr;
-  assign ccif.daddr = daddr;
+  assign ccif.daddr = dcif.dmemaddr;
 
 endmodule
