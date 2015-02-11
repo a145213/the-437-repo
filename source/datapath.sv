@@ -64,7 +64,7 @@ module datapath (
   //---------------------------i am der----------------------------------
 
   // fetch stage
-  assign plif.en_fd = dpif.ihit || dpif.dhit;
+  assign plif.en_fd = dpif.ihit && !dpif.dhit;
   //assign plif.flush_fd = !dpif.ihit || dpif.dhit;
   assign plif.flush_fd = 0;
   assign plif.instr_fet = dpif.imemload;
@@ -91,7 +91,7 @@ module datapath (
   );
 
   // decode stage
-  assign plif.en_de = dpif.ihit || dpif.dhit;
+  assign plif.en_de = dpif.ihit && !dpif.dhit;
   //assign plif.flush_de = !dpif.ihit && !dpif.dhit;
   assign plif.flush_de = 0;
   r_t rtype;
@@ -126,7 +126,7 @@ module datapath (
 
 
   // execute stage
-  assign plif.en_em = dpif.ihit || dpif.dhit;
+  assign plif.en_em = dpif.ihit && !dpif.dhit;
   //assign plif.flush_em = !dpif.ihit && !dpif.dhit;
   assign plif.flush_em = !dpif.ihit || dpif.dhit;
   //assign plif.flush_em = 0;

@@ -56,7 +56,7 @@ module caches (
   assign dcif.dhit = (dcif.dmemREN|dcif.dmemWEN) ? ~ccif.dwait : 0;
   assign dcif.imemload = ccif.iload;
   assign dcif.dmemload = ccif.dload;
-  
+
   assign ccif.iREN = dcif.imemREN;
   assign ccif.dREN = dcif.dmemREN;
   assign ccif.dWEN = dcif.dmemWEN;
