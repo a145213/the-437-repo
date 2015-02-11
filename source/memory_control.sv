@@ -50,14 +50,18 @@ always_comb begin
       ccif.iwait = ccif.dWEN || ccif.dREN;
     end
     ACCESS: begin
+    
       if (ccif.dWEN || ccif.dREN) begin
         ccif.iwait = 1;
         ccif.dwait = 0;
       end
       else if (ccif.iREN) begin
         ccif.iwait = 0;
-        ccif.dwait = 1;
+        ccif.dwait = 0;
       end
+    
+      //ccif.iwait = ccif.dREN || ccif.dWEN;
+      //ccif.dwait = 1'b0;
     end
     ERROR: begin
       ccif.iwait = 1;

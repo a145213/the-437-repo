@@ -24,7 +24,9 @@ module system_fpga (
   output logic [6:0] HEX4,
   output logic [6:0] HEX5,
   output logic [6:0] HEX6,
-  output logic [6:0] HEX7
+  output logic [6:0] HEX7,
+
+  output logic [38:0] GPIO
 );
   // interface
   system_if syif();
@@ -66,6 +68,50 @@ module system_fpga (
   assign syif.REN = syif.halt;
   assign syif.addr = {16'b0,SW[15:0]};
   assign nRST = KEY[3] & auto_nRST;
+
+  /*assign GPIO[0] = 0;
+  assign GPIO[1] = nRST;
+  assign GPIO[3] = 0;
+  assign GPIO[5] = 0;
+  assign GPIO[7] = 0;
+  assign GPIO[9] = 0;
+  assign GPIO[11] = 0;
+  assign GPIO[13] = 0;
+  assign GPIO[15] = 0;
+  assign GPIO[17] = 0;
+  assign GPIO[19] = 0;
+  assign GPIO[21] = 0;
+  assign GPIO[23] = 0;
+  assign GPIO[25] = 0;
+  assign GPIO[27] = 0;
+  assign GPIO[29] = 0;
+  assign GPIO[31] = 0;
+  assign GPIO[33] = 0;
+  assign GPIO[35] = 0;
+  assign GPIO[37] = 0;
+
+  assign GPIO[2] = syif.store[0];
+  assign GPIO[4] = syif.store[1];
+  assign GPIO[6] = syif.store[2];
+  assign GPIO[8] = syif.store[3];
+  assign GPIO[10] = syif.store[4];
+  assign GPIO[12] = syif.store[5];
+  assign GPIO[14] = syif.store[6];
+  assign GPIO[16] = syif.store[7];
+  assign GPIO[18] = syif.store[8];
+  assign GPIO[20] = syif.store[9];
+  assign GPIO[22] = syif.store[10];
+  assign GPIO[24] = syif.store[11];
+  assign GPIO[26] = syif.store[12];
+  assign GPIO[28] = syif.store[13];
+  assign GPIO[30] = syif.store[14];
+  assign GPIO[32] = syif.store[15];
+  assign GPIO[34] = syif.store[16];
+  assign GPIO[36] = syif.store[17];
+  assign GPIO[38] = syif.store[18];*/
+
+  //assign GPIO[32:1] = syif.store[31:0];
+  //assign GPIO[39:33] = syif.addr[8:0];
 
   always_comb
   begin : HEXZERO

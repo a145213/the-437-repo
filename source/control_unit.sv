@@ -16,9 +16,6 @@ module control_unit
     cuif.RegWrite = 0;
     cuif.ALUSrc = 0;
     cuif.MemToReg = 0;
-    cuif.shamt = 0;
-    cuif.Jal = 0;
-    cuif.Jump = 0;
     cuif.PCSrc = 0;
     cuif.ExtOp = 0;
     cuif.dWEN = 0;
@@ -27,16 +24,13 @@ module control_unit
     cuif.alu_op = ALU_ADD;
   
     if (cuif.opcode == RTYPE) begin
-      cuif.RegDst = 1;
+      cuif.RegDst = 0;
       cuif.RegWrite = 1;
       cuif.ALUSrc = 0;
-      cuif.MemToReg = 0;
-      cuif.shamt = 0;
-      cuif.Jal = 1;
-      cuif.Jump = 0;
-      cuif.PCSrc = 1;
+      cuif.MemToReg = 1;
+      cuif.PCSrc = 0;
       cuif.ExtOp = 0;
-      cuif.iREN = 1;  
+      cuif.iREN = 1;
 
     casez (cuif.funct)
       ADDU: cuif.alu_op = ALU_ADD;
@@ -45,7 +39,7 @@ module control_unit
         cuif.halt = cuif.overflow;
       end
       AND: cuif.alu_op = ALU_AND;
-      JR: cuif.Jump = 1;
+      JR: cuif.PCSrc = 3;
       NOR: cuif.alu_op = ALU_NOR;
       OR: cuif.alu_op = ALU_OR;
       SLT: cuif.alu_op = ALU_SLT;
@@ -69,21 +63,18 @@ module control_unit
  end
  else begin
   // I type instructions
-    cuif.RegDst = 0;
+    cuif.RegDst = 1;
     cuif.RegWrite = 1;
     cuif.ALUSrc = 1;
-    cuif.MemToReg = 0;
-    cuif.shamt = 0;
-    cuif.Jal = 1;
-    cuif.Jump = 0;
-    cuif.PCSrc = 1;
+    cuif.MemToReg = 1;
+    cuif.PCSrc = 0;
     cuif.ExtOp = 1;
     cuif.dWEN = 0;
     cuif.dREN = 0;
     cuif.halt = 0;
 
   casez (cuif.opcode)
-    BEQ: begin              //PCSrc Default to 1?
+    BEQ: begin
       cuif.alu_op = ALU_SUB;
       cuif.RegWrite = 0;
       cuif.ALUSrc = 0;
@@ -102,7 +93,7 @@ module control_unit
       else cuif.PCSrc = 1;
     end
     ADDI: begin
-      cuif.alu_op = ALU_ADD;      // set ExtOp
+      cuif.alu_op = ALU_ADD;
       cuif.halt = cuif.overflow;
       cuif.ExtOp = 0;
     end
@@ -115,16 +106,16 @@ module control_unit
       cuif.ExtOp = 0;
     end
     XORI: begin
-      cuif.alu_op = ALU_XOR;    // set zero extend
+      cuif.alu_op = ALU_XOR;
       cuif.ExtOp = 0;
     end
     LUI: begin
       cuif.alu_op = ALU_ADD;
-      cuif.Jal = 2;
+      cuif.MemToReg = 3;
     end
     LW: begin
       cuif.alu_op = ALU_ADD;
-      cuif.MemToReg = 1;        // load data from memory
+      cuif.MemToReg = 0;
       cuif.dREN = 1;
       cuif.iREN = 0;
     end
@@ -139,11 +130,10 @@ module control_unit
       cuif.iREN = 0;
     end
     // J type
-    J: cuif.Jump = 2;
+    J: cuif.PCSrc = 2;
     JAL: begin
-      cuif.Jal = 0;
       cuif.RegDst = 2;
-      cuif.Jump = 2;
+      cuif.PCSrc = 2;
     end
     default: cuif.alu_op = ALU_ADD;
   endcase
