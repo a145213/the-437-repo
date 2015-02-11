@@ -32,7 +32,7 @@ module caches (
   //dcache  DCACHE(dcif, ccif);
 
   // single cycle instr saver (for memory ops)
-  always_ff @(posedge CLK)
+  /*always_ff @(posedge CLK)
   begin
     if (!nRST)
     begin
@@ -46,7 +46,7 @@ module caches (
       instr <= ccif.iload;
       daddr <= dcif.dmemaddr;
     end
-  end
+  end*/
   // dcache invalidate before halt
   assign dcif.flushed = dcif.halt;
 
