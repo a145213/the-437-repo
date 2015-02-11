@@ -64,7 +64,7 @@ module datapath (
   //---------------------------i am der----------------------------------
 
   // fetch stage
-  assign plif.en_fd = dpif.ihit & !dpif.dhit;
+  assign plif.en_fd = dpif.ihit || dpif.dhit;
   //assign plif.flush_fd = !dpif.ihit || dpif.dhit;
   assign plif.flush_fd = 0;
   assign plif.instr_fet = dpif.imemload;
@@ -91,8 +91,8 @@ module datapath (
   );
 
   // decode stage
-  assign plif.en_de = dpif.ihit & !dpif.dhit;
-  //assign plif.flush_de = !dpif.ihit || dpif.dhit;
+  assign plif.en_de = dpif.ihit || dpif.dhit;
+  //assign plif.flush_de = !dpif.ihit && !dpif.dhit;
   assign plif.flush_de = 0;
   r_t rtype;
   i_t itype;
@@ -102,7 +102,7 @@ module datapath (
   assign jtype = plif.instr_dec;
   assign rfif.rsel1 = rtype.rs;
   assign rfif.rsel2 = rtype.rt;
-  assign rfif.WEN = plif.RegWrite_mem;
+  assign rfif.WEN = plif.RegWrite_wb;
   assign seif.ExtOp = cuif.ExtOp;
   assign cuif.funct = rtype.funct;
   assign cuif.opcode = rtype.opcode;
@@ -126,7 +126,8 @@ module datapath (
 
 
   // execute stage
-  assign plif.en_em = dpif.ihit & !dpif.dhit;
+  assign plif.en_em = dpif.ihit || dpif.dhit;
+  //assign plif.flush_em = !dpif.ihit && !dpif.dhit;
   assign plif.flush_em = !dpif.ihit || dpif.dhit;
   //assign plif.flush_em = 0;
   assign aluif.alu_op = plif.alu_op_ex;
@@ -157,11 +158,11 @@ module datapath (
   end
 
   // memory stage
-  assign plif.en_mw = dpif.ihit & !dpif.dhit;
-  assign plif.flush_mw = !dpif.ihit || dpif.dhit;
-  //assign plif.flush_mw = 0;
+  assign plif.en_mw = dpif.ihit || dpif.dhit;
+  //assign plif.flush_mw = !dpif.ihit || dpif.dhit;
+  assign plif.flush_mw = 0;
   assign dpif.dmemstore = plif.rdat2_mem;
-  assign dpif.dmemaddr = plif.port_o_ex; // This is a dumb fix...why does it need to come from the execute stage???
+  assign dpif.dmemaddr = plif.port_o_mem; // This is a dumb fix...why does it need to come from the execute stage???
   assign rfif.wsel = plif.regWSEL_wb;
   assign plif.dmemload_mem = dpif.dmemload;
 
