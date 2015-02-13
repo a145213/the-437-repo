@@ -26,7 +26,7 @@ always_ff @ (posedge CLK, negedge nRST) begin
     emif.regWSEL_mem <= 0;
     emif.baddr_mem <= 0;
   end
-  else if (emif.en_em) begin
+  else if (emif.em_state == PIPE_ENABLE) begin
     emif.PCSrc_mem <= emif.PCSrc_ex;
     emif.MemToReg_mem <= emif.MemToReg_ex;
     emif.dREN_mem <= emif.dREN_ex;
@@ -43,7 +43,7 @@ always_ff @ (posedge CLK, negedge nRST) begin
     emif.lui_mem <= emif.lui_ex;
     emif.regWSEL_mem <= emif.regWSEL_ex;
     emif.baddr_mem <= emif.baddr_ex;
-  end else if (emif.flush_em) begin
+  end else if (emif.em_state == PIPE_NOP) begin
     emif.PCSrc_mem <= 0;
     emif.MemToReg_mem <= 0;
     emif.dREN_mem <= 0;

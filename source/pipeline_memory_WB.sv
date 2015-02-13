@@ -18,7 +18,7 @@ always_ff @ (posedge CLK, negedge nRST) begin
     mwif.pc4_wb <= 0;
     mwif.regWSEL_wb <= 0;
   end
-  else if (mwif.en_mw) begin
+  else if (mwif.mw_state == PIPE_ENABLE) begin
     mwif.RegWrite_wb <= mwif.RegWrite_mem;
     mwif.halt_wb <= mwif.halt_mem;
     mwif.MemToReg_wb <= mwif.MemToReg_mem;
@@ -27,7 +27,7 @@ always_ff @ (posedge CLK, negedge nRST) begin
     mwif.lui_wb <= mwif.lui_mem;
     mwif.pc4_wb <= mwif.pc4_mem;
     mwif.regWSEL_wb <= mwif.regWSEL_mem;
-  end else if (mwif.flush_mw) begin
+  end else if (mwif.mw_state == PIPE_NOP) begin
     mwif.RegWrite_wb <= 0;
     mwif.halt_wb <= 0;
     mwif.MemToReg_wb <= 0;

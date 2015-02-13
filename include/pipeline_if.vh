@@ -5,10 +5,22 @@
 interface pipeline_if;
 
   import cpu_types_pkg::*;
+  // PC Source outcomes
 
-  // latch enables
-  logic en_fd, en_de, en_em, en_mw;
-  logic flush_fd, flush_de, flush_em, flush_mw;
+  // 00 = STALL
+  // 01 = LATCH ENABLE
+  // 10 = NOP
+  // 11 = FLUSH
+  typedef enum logic [1:0] {
+    PIPE_STALL = 2'b00,
+    PIPE_ENABLE = 2'b01,
+    PIPE_NOP = 2'b10,
+    PIPE_FLUSH = 2'b11
+  } pipe_state_t;
+
+  // Latch states
+  pipe_state_t fd_state, de_state, em_state, mw_state;
+
   // fetch-decode
   word_t instr_fet;
   word_t instr_dec;
@@ -52,7 +64,7 @@ interface pipeline_if;
 
   // fetch-decode
   modport fd (
-    input instr_fet, pc4_fet, en_fd, flush_fd,
+    input instr_fet, pc4_fet, fd_state,
     output instr_dec, pc4_dec
   );
 
@@ -60,7 +72,7 @@ interface pipeline_if;
   modport de (
     input RegDst_dec, ALUSrc_dec, PCSrc_dec, MemToReg_dec, dREN_dec, 
       dWEN_dec, RegWrite_dec, halt_dec, rdat1_dec, rdat2_dec, sign_ext_dec,
-      taddr_dec, rd_dec, rt_dec, pc4_dec, alu_op_dec, shift_amt_dec, en_de, flush_de,
+      taddr_dec, rd_dec, rt_dec, pc4_dec, alu_op_dec, shift_amt_dec, de_state,
     output RegDst_ex, ALUSrc_ex, PCSrc_ex, MemToReg_ex, dREN_ex, 
       dWEN_ex, RegWrite_ex, halt_ex, rdat1_ex, rdat2_ex, sign_ext_ex,
       taddr_ex, rd_ex, rt_ex, shift_amt_ex, pc4_ex, alu_op_ex
@@ -70,7 +82,7 @@ interface pipeline_if;
   modport em (
     input PCSrc_ex, dWEN_ex, dREN_ex, RegWrite_ex, halt_ex, MemToReg_ex,
       rdat1_ex, rdat2_ex, port_o_ex, zero_ex, overflow_ex, lui_ex, pc4_ex,
-      jaddr_ex, regWSEL_ex, baddr_ex, en_em, flush_em,
+      jaddr_ex, regWSEL_ex, baddr_ex, em_state,
     output PCSrc_mem, dWEN_mem, dREN_mem, RegWrite_mem, halt_mem, MemToReg_mem,
       rdat1_mem, rdat2_mem, port_o_mem, zero_mem, overflow_mem, lui_mem, 
       pc4_mem, jaddr_mem, regWSEL_mem, baddr_mem
@@ -79,10 +91,9 @@ interface pipeline_if;
   // memory-write_back
   modport mw (
     input RegWrite_mem, halt_mem, MemToReg_mem, dmemload_mem, port_o_mem, lui_mem,
-      pc4_mem, regWSEL_mem, en_mw, flush_mw,
+      pc4_mem, regWSEL_mem, mw_state,
     output RegWrite_wb, halt_wb, dmemload_wb, port_o_wb, lui_wb, pc4_wb, regWSEL_wb, MemToReg_wb
   );
-
 
  endinterface
 

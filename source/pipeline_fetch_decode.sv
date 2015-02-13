@@ -12,10 +12,10 @@ always_ff @ (posedge CLK, negedge nRST) begin
     fdif.instr_dec <= 0;
     fdif.pc4_dec <= 0;
   end
-  else if (fdif.en_fd) begin
+  else if (fdif.fd_state == PIPE_ENABLE) begin
     fdif.instr_dec <= fdif.instr_fet;
     fdif.pc4_dec <= fdif.pc4_fet;
-  end else if (fdif.flush_fd) begin
+  end else if (fdif.fd_state == PIPE_NOP) begin
     fdif.instr_dec <= 0;
     fdif.pc4_dec <= 0;
   end
