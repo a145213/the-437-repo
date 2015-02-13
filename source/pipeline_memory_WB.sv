@@ -8,11 +8,11 @@ module pipeline_memory_WB
 );
 
 always_ff @ (posedge CLK, negedge nRST) begin
-  if (!nRST || mwif.flush_mw) begin
+  if (!nRST) begin
     mwif.RegWrite_wb <= 0;
     mwif.halt_wb <= 0;
     mwif.MemToReg_wb <= 0;
-    //mwif.dmemload_wb <= 0;
+    mwif.dmemload_wb <= 0;
     mwif.port_o_wb <= 0;
     mwif.lui_wb <= 0;
     mwif.pc4_wb <= 0;
@@ -27,6 +27,15 @@ always_ff @ (posedge CLK, negedge nRST) begin
     mwif.lui_wb <= mwif.lui_mem;
     mwif.pc4_wb <= mwif.pc4_mem;
     mwif.regWSEL_wb <= mwif.regWSEL_mem;
+  end else if (mwif.flush_mw) begin
+    mwif.RegWrite_wb <= 0;
+    mwif.halt_wb <= 0;
+    mwif.MemToReg_wb <= 0;
+    mwif.dmemload_wb <= 0;
+    mwif.port_o_wb <= 0;
+    mwif.lui_wb <= 0;
+    mwif.pc4_wb <= 0;
+    mwif.regWSEL_wb <= 0;
   end
 end
 

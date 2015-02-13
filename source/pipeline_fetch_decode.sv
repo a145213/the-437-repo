@@ -8,14 +8,16 @@ module pipeline_fetch_decode
 );
 
 always_ff @ (posedge CLK, negedge nRST) begin
-  if (!nRST || fdif.flush_fd) begin
+  if (!nRST) begin
     fdif.instr_dec <= 0;
     fdif.pc4_dec <= 0;
   end
   else if (fdif.en_fd) begin
     fdif.instr_dec <= fdif.instr_fet;
     fdif.pc4_dec <= fdif.pc4_fet;
-
+  end else if (fdif.flush_fd) begin
+    fdif.instr_dec <= 0;
+    fdif.pc4_dec <= 0;
   end
 end
 

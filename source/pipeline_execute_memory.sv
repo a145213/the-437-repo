@@ -8,7 +8,7 @@ module pipeline_execute_memory
 );
 
 always_ff @ (posedge CLK, negedge nRST) begin
-  if (!nRST || emif.flush_em) begin
+  if (!nRST) begin
     emif.PCSrc_mem <= 0;
     emif.MemToReg_mem <= 0;
     emif.dREN_mem <= 0;
@@ -43,6 +43,23 @@ always_ff @ (posedge CLK, negedge nRST) begin
     emif.lui_mem <= emif.lui_ex;
     emif.regWSEL_mem <= emif.regWSEL_ex;
     emif.baddr_mem <= emif.baddr_ex;
+  end else if (emif.flush_em) begin
+    emif.PCSrc_mem <= 0;
+    emif.MemToReg_mem <= 0;
+    emif.dREN_mem <= 0;
+    emif.dWEN_mem <= 0;
+    emif.RegWrite_mem <= 0;
+    emif.halt_mem <= 0;
+    emif.rdat1_mem <= 0;
+    emif.rdat2_mem <= 0;
+    emif.jaddr_mem <= 0;
+    emif.pc4_mem <= 0;
+    emif.port_o_mem <= 0;
+    emif.zero_mem <= 0;
+    emif.overflow_mem <= 0;
+    emif.lui_mem <= 0;
+    emif.regWSEL_mem <= 0;
+    emif.baddr_mem <= 0;
   end
 end
 

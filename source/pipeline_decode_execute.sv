@@ -10,7 +10,7 @@ module pipeline_decode_execute
 import cpu_types_pkg::*;
 
 always_ff @ (posedge CLK, negedge nRST) begin
-  if (!nRST || deif.flush_de) begin
+  if (!nRST) begin
     deif.RegDst_ex <= 0;
     deif.ALUSrc_ex <= 0;
     deif.PCSrc_ex <= 0;
@@ -47,7 +47,25 @@ always_ff @ (posedge CLK, negedge nRST) begin
     deif.shift_amt_ex <= deif.shift_amt_dec;
     deif.pc4_ex <= deif.pc4_dec;
     deif.alu_op_ex <= deif.alu_op_dec;
-  end
+  end else if (deif.flush_de) begin
+    deif.RegDst_ex <= 0;
+    deif.ALUSrc_ex <= 0;
+    deif.PCSrc_ex <= 0;
+    deif.MemToReg_ex <= 0;
+    deif.dREN_ex <= 0;
+    deif.dWEN_ex <= 0;
+    deif.RegWrite_ex <= 0;
+    deif.halt_ex <= 0;
+    deif.rdat1_ex <= 0;
+    deif.rdat2_ex <= 0;
+    deif.sign_ext_ex <= 0;
+    deif.taddr_ex <= 0;
+    deif.rd_ex <= 0;
+    deif.rt_ex <= 0;
+    deif.shift_amt_ex <= 0;
+    deif.pc4_ex <= 0;
+    deif.alu_op_ex <= ALU_SLL;
+    end
 end
 
 endmodule
