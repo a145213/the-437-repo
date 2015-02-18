@@ -8,7 +8,11 @@ interface hazard_unit_if;
     import cpu_types_pkg::*;
 
     // Inputs
-    word_t instr;
+    //word_t instr_fetch, instr_decode;
+    regbits_t rs, rt;
+    regbits_t ex_wsel, mem_wsel;
+    logic alu_zero;
+    logic ihit, dhit;
 
     // Outputs
     logic PC_WEN;
@@ -17,14 +21,14 @@ interface hazard_unit_if;
  
 // Hazard Unit ports
 modport hu (
-        input instr,
-        output fd_state, de_state, em_state, mw_state
+        input alu_zero, ihit, dhit, rs, rt, ex_wsel, mem_wsel,
+        output fd_state, de_state, em_state, mw_state, PC_WEN
 );
 
 // Hazard Unit TB
 modport tb (
-        output instr,
-        input fd_state, de_state, em_state, mw_state
+        output alu_zero, ihit, dhit, rs, rt, ex_wsel, mem_wsel,
+        input fd_state, de_state, em_state, mw_state, PC_WEN
 );
 
 endinterface

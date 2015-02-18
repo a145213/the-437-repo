@@ -7,6 +7,8 @@ module pipeline_memory_WB
   pipeline_if.mw mwif
 );
 
+import cpu_types_pkg::*;
+
 always_ff @ (posedge CLK, negedge nRST) begin
   if (!nRST) begin
     mwif.RegWrite_wb <= 0;

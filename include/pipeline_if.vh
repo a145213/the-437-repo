@@ -7,16 +7,7 @@ interface pipeline_if;
   import cpu_types_pkg::*;
   // PC Source outcomes
 
-  // 00 = STALL
-  // 01 = LATCH ENABLE
-  // 10 = NOP
-  // 11 = FLUSH
-  typedef enum logic [1:0] {
-    PIPE_STALL = 2'b00,
-    PIPE_ENABLE = 2'b01,
-    PIPE_NOP = 2'b10,
-    PIPE_FLUSH = 2'b11
-  } pipe_state_t;
+  
 
   // Latch states
   pipe_state_t fd_state, de_state, em_state, mw_state;
@@ -35,7 +26,8 @@ interface pipeline_if;
   logic dREN_dec, dWEN_dec, RegWrite_dec, halt_dec;
 
   word_t rdat1_dec, rdat2_dec;
-  word_t sign_ext_dec, taddr_dec, jaddr_dec, rd_dec, rt_dec, shift_amt_dec;
+  word_t sign_ext_dec, taddr_dec, jaddr_dec, rd_dec, rt_dec;
+  logic [SHAM_W-1:0] shift_amt_dec;
   aluop_t alu_op_dec;
 
   logic [1:0] RegDst_ex;
@@ -45,8 +37,10 @@ interface pipeline_if;
   logic dREN_ex, dWEN_ex, RegWrite_ex, halt_ex, zero_ex, overflow_ex;
 
   word_t rdat1_ex, rdat2_ex;
-  word_t sign_ext_ex, taddr_ex, jaddr_ex, rd_ex, rt_ex, shift_amt_ex;
-  word_t pc4_ex, lui_ex, regWSEL_ex, baddr_ex, port_o_ex;
+  word_t sign_ext_ex, taddr_ex, jaddr_ex, rd_ex, rt_ex;
+  logic [SHAM_W-1:0] shift_amt_ex;
+  word_t pc4_ex, lui_ex, baddr_ex, port_o_ex;
+  regbits_t regWSEL_ex;
   aluop_t alu_op_ex;
 
   // execute-memory
@@ -56,10 +50,12 @@ interface pipeline_if;
   
   word_t rdat1_mem, rdat2_mem;
   word_t port_o_mem, zero_mem, overflow_mem, lui_mem, pc4_mem, 
-        jaddr_mem, regWSEL_mem, baddr_mem, dmemload_mem;
+        jaddr_mem, baddr_mem, dmemload_mem;
+  regbits_t regWSEL_mem;
 
   // memory-write_back
-  word_t dmemload_wb, port_o_wb, lui_wb, pc4_wb, regWSEL_wb;
+  word_t dmemload_wb, port_o_wb, lui_wb, pc4_wb;
+  regbits_t regWSEL_wb;
   logic [1:0] MemToReg_wb;
 
   // fetch-decode

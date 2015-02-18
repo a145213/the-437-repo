@@ -7,6 +7,8 @@ module pipeline_fetch_decode
   pipeline_if.fd fdif
 );
 
+import cpu_types_pkg::*;
+
 always_ff @ (posedge CLK, negedge nRST) begin
   if (!nRST) begin
     fdif.instr_dec <= 0;

@@ -7,7 +7,18 @@
 `ifndef CPU_TYPES_PKG_VH
 `define CPU_TYPES_PKG_VH
 package cpu_types_pkg;
-
+  
+  // 00 = STALL
+  // 01 = LATCH ENABLE
+  // 10 = NOP
+  // 11 = FLUSH
+  typedef enum logic [1:0] {
+    PIPE_STALL = 2'b00,
+    PIPE_ENABLE = 2'b01,
+    PIPE_NOP = 2'b10,
+    PIPE_FLUSH = 2'b11
+  } pipe_state_t;
+  
   // word width and size
   parameter WORD_W    = 32;
   parameter WBYTES    = WORD_W/8;

@@ -7,6 +7,8 @@ module pipeline_execute_memory
   pipeline_if.em emif
 );
 
+import cpu_types_pkg::*;
+
 always_ff @ (posedge CLK, negedge nRST) begin
   if (!nRST) begin
     emif.PCSrc_mem <= 0;

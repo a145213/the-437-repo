@@ -39,6 +39,7 @@ module datapath (
   request_unit_if   ruif();
   sign_extender_if  seif();
   pipeline_if       plif();
+  hazard_unit_if    huif();
 
   register_file RF (CLK, nRST, rfif);
   pc PC (CLK, nRST, pcif);
@@ -50,6 +51,7 @@ module datapath (
   pipeline_decode_execute DE (CLK, nRST, plif);
   pipeline_execute_memory EM (CLK, nRST, plif);
   pipeline_fetch_decode FD (CLK, nRST, plif);
+  hazard_unit HU (huif);
 
   word_t pc, pc4, npc;
 
@@ -64,9 +66,11 @@ module datapath (
   //---------------------------i am der----------------------------------
 
   // fetch stage
-  assign plif.en_fd = dpif.ihit && !dpif.dhit;
+  //assign plif.en_fd = dpif.ihit && !dpif.dhit;
   //assign plif.flush_fd = !dpif.ihit || dpif.dhit;
-  assign plif.flush_fd = 0;
+  //assign plif.flush_fd = 0;
+  assign plif.fd_state = huif.fd_state;
+
   assign plif.instr_fet = dpif.imemload;
   assign plif.pc4_fet = pc4;
 
@@ -91,9 +95,11 @@ module datapath (
   );
 
   // decode stage
-  assign plif.en_de = dpif.ihit && !dpif.dhit;
+  //assign plif.en_de = dpif.ihit && !dpif.dhit;
   //assign plif.flush_de = !dpif.ihit && !dpif.dhit;
-  assign plif.flush_de = 0;
+  //assign plif.flush_de = 0;
+  assign plif.de_state = huif.de_state;
+
   r_t rtype;
   i_t itype;
   j_t jtype;
@@ -126,10 +132,12 @@ module datapath (
 
 
   // execute stage
-  assign plif.en_em = dpif.ihit && !dpif.dhit;
+  //assign plif.en_em = dpif.ihit && !dpif.dhit;
   //assign plif.flush_em = !dpif.ihit && !dpif.dhit;
-  assign plif.flush_em = !dpif.ihit || dpif.dhit;
+  //assign plif.flush_em = !dpif.ihit || dpif.dhit;
   //assign plif.flush_em = 0;
+  assign plif.em_state = huif.em_state;
+
   assign aluif.alu_op = plif.alu_op_ex;
   assign aluif.port_a = plif.rdat1_ex;
   assign plif.port_o_ex = aluif.port_o;
@@ -138,6 +146,7 @@ module datapath (
   assign plif.lui_ex = {plif.sign_ext_ex,16'h0000};
   assign plif.jaddr_ex = {plif.pc4_ex[WORD_W-1:WORD_W-4],(plif.jaddr_ex << 2)};
   assign plif.baddr_ex = (plif.lui_ex << 2) + plif.pc4_ex;
+  assign plif.shift_amt_dec = rtype.shamt;
 
   always_comb begin
     if (plif.ALUSrc_ex == 0)
@@ -145,22 +154,28 @@ module datapath (
     else if (plif.ALUSrc_ex == 1)
       aluif.port_b = plif.sign_ext_ex;
     else
-      aluif.port_b = {27'h0000000,rtype.shamt};
+      aluif.port_b = {27'h0000000,plif.shift_amt_ex};
   end
 
+  // Need internal signal to connect to HU
+  regbits_t ex_wsel;
+  assign plif.regWSEL_ex = ex_wsel;
   always_comb begin
     if (plif.RegDst_ex == 0)
-      plif.regWSEL_ex = plif.rd_ex;
+      ex_wsel = plif.rd_ex;
     else if (plif.RegDst_ex == 1)
-      plif.regWSEL_ex = plif.rt_ex;
+      ex_wsel = plif.rt_ex;
     else
-      plif.regWSEL_ex = 32'd31;
+      ex_wsel = 32'd31;
   end
 
   // memory stage
-  assign plif.en_mw = dpif.ihit || dpif.dhit;
+  //assign plif.en_mw = dpif.ihit || dpif.dhit;
   //assign plif.flush_mw = !dpif.ihit || dpif.dhit;
-  assign plif.flush_mw = 0;
+  //assign plif.flush_mw = 0;
+  assign plif.mw_state = huif.mw_state;
+
+
   assign dpif.dmemstore = plif.rdat2_mem;
   assign dpif.dmemaddr = plif.port_o_mem; // This is a dumb fix...why does it need to come from the execute stage???
   assign rfif.wsel = plif.regWSEL_wb;
@@ -193,7 +208,8 @@ module datapath (
   //assign ruif.dWEN = plif.dWEN_mem;
   //assign ruif.dREN = plif.dREN_mem;
   
-  assign pcif.PC_WEN = dpif.ihit & !dpif.dhit;
+  //assign pcif.PC_WEN = dpif.ihit & !dpif.dhit;
+  assign pcif.PC_WEN = huif.PC_WEN;
   always_comb begin
     /*
     if (dpif.ihit) begin
@@ -257,5 +273,18 @@ module datapath (
     else
       rfif.wdat = seif.data_out << 16;
   end*/
+
+
+  //
+  // Hazard Unit
+  //
+  assign huif.dhit = dpif.dhit;
+  assign huif.ihit = dpif.ihit;
+  //assign huif.instr = dpif.imemload;
+  assign huif.alu_zero = aluif.zero;
+  assign huif.rs = rtype.rs;
+  assign huif.rt = rtype.rt;
+  assign huif.ex_wsel = ex_wsel;
+  assign huif.mem_wsel = plif.regWSEL_mem;
 
 endmodule
