@@ -21,6 +21,8 @@ module control_unit
     cuif.dWEN = 0;
     cuif.dREN = 0;
     cuif.iREN = 0;
+    cuif.check_zero = 0;
+    cuif.check_overflow = 0;
     cuif.alu_op = ALU_ADD;
   
     if (cuif.opcode == RTYPE) begin
@@ -36,7 +38,8 @@ module control_unit
       ADDU: cuif.alu_op = ALU_ADD;
       ADD: begin
         cuif.alu_op = ALU_ADD;
-        cuif.halt = cuif.overflow;
+        cuif.check_zero = 0;
+        cuif.check_overflow = 1;
       end
       AND: cuif.alu_op = ALU_AND;
       JR: cuif.PCSrc = 3;
@@ -55,7 +58,8 @@ module control_unit
       SUBU: cuif.alu_op = ALU_SUB;
       SUB: begin 
         cuif.alu_op = ALU_SUB;
-        cuif.halt = cuif.overflow;
+        cuif.check_zero = 0;
+        cuif.check_overflow = 1;  
       end
       XOR: cuif.alu_op = ALU_XOR;
       default: cuif.alu_op = ALU_ADD;
@@ -79,23 +83,22 @@ module control_unit
       cuif.RegWrite = 0;
       cuif.ALUSrc = 0;
       cuif.ExtOp = 1;
-      if (cuif.alu_zero == 1)
-        cuif.PCSrc = 0;
-      else cuif.PCSrc = 1;
+      cuif.PCSrc = 1;
+      cuif.check_zero = 1;
     end
     BNE: begin
       cuif.alu_op = ALU_SUB;
       cuif.RegWrite = 0;
       cuif.ALUSrc = 0;
       cuif.ExtOp = 1;
-      if (cuif.alu_zero != 1)
-        cuif.PCSrc = 0;
-      else cuif.PCSrc = 1;
+      cuif.PCSrc = 1;
+      cuif.check_zero = 0;
     end
     ADDI: begin
-      cuif.alu_op = ALU_ADD;
-      cuif.halt = cuif.overflow;
+      cuif.alu_op = ALU_ADD;;
       cuif.ExtOp = 0;
+      cuif.check_zero = 0;
+      cuif.check_overflow = 1;
     end
     ADDIU: cuif.alu_op = ALU_ADD;
     SLTI: cuif.alu_op = ALU_SLT;
@@ -134,6 +137,7 @@ module control_unit
     JAL: begin
       cuif.RegDst = 2;
       cuif.PCSrc = 2;
+      cuif.MemToReg = 2;
     end
     default: cuif.alu_op = ALU_ADD;
   endcase

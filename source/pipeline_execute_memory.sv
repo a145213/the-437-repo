@@ -27,6 +27,8 @@ always_ff @ (posedge CLK, negedge nRST) begin
     emif.lui_mem <= 0;
     emif.regWSEL_mem <= 0;
     emif.baddr_mem <= 0;
+    emif.check_zero_mem <= 0;
+    emif.check_overflow_mem <= 0;
   end
   else if (emif.em_state == PIPE_ENABLE) begin
     emif.PCSrc_mem <= emif.PCSrc_ex;
@@ -45,6 +47,8 @@ always_ff @ (posedge CLK, negedge nRST) begin
     emif.lui_mem <= emif.lui_ex;
     emif.regWSEL_mem <= emif.regWSEL_ex;
     emif.baddr_mem <= emif.baddr_ex;
+    emif.check_zero_mem <= emif.check_zero_ex;
+    emif.check_overflow_mem <= emif.check_overflow_ex;
   end else if (emif.em_state == PIPE_NOP) begin
     emif.PCSrc_mem <= 0;
     emif.MemToReg_mem <= 0;
@@ -62,6 +66,8 @@ always_ff @ (posedge CLK, negedge nRST) begin
     emif.lui_mem <= 0;
     emif.regWSEL_mem <= 0;
     emif.baddr_mem <= 0;
+    emif.check_zero_mem <= 0;
+    emif.check_overflow_mem <= 0;
   end
 end
 

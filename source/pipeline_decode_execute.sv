@@ -28,6 +28,8 @@ always_ff @ (posedge CLK, negedge nRST) begin
     deif.shift_amt_ex <= 0;
     deif.pc4_ex <= 0;
     deif.alu_op_ex <= ALU_SLL;
+    deif.check_zero_ex <= 0;
+    deif.check_overflow_ex <= 0;
   end
   else if (deif.de_state == PIPE_ENABLE) begin
     deif.RegDst_ex <= deif.RegDst_dec;
@@ -47,6 +49,8 @@ always_ff @ (posedge CLK, negedge nRST) begin
     deif.shift_amt_ex <= deif.shift_amt_dec;
     deif.pc4_ex <= deif.pc4_dec;
     deif.alu_op_ex <= deif.alu_op_dec;
+    deif.check_zero_ex <= deif.check_zero_dec;
+    deif.check_overflow_ex <= deif.check_overflow_dec;
   end else if (deif.de_state == PIPE_NOP) begin
     deif.RegDst_ex <= 0;
     deif.ALUSrc_ex <= 0;
@@ -65,6 +69,8 @@ always_ff @ (posedge CLK, negedge nRST) begin
     deif.shift_amt_ex <= 0;
     deif.pc4_ex <= 0;
     deif.alu_op_ex <= ALU_SLL;
+    deif.check_zero_ex <= 0;
+    deif.check_overflow_ex <= 0;
     end
 end
 

@@ -37,6 +37,9 @@ interface control_unit_if;
   // PC enable
   //logic PC_WEN;
 
+  logic check_overflow;
+  logic check_zero;
+
   // alu opcode
   aluop_t alu_op;
   logic overflow;
@@ -44,13 +47,13 @@ interface control_unit_if;
   modport cu (
     input opcode, funct, alu_zero, overflow,
     output halt, iREN, dREN, dWEN, RegDst, MemToReg, 
-    PCSrc, ALUSrc, RegWrite, MemWrite, MemRead, ExtOp, alu_op
+    PCSrc, ALUSrc, RegWrite, MemWrite, MemRead, ExtOp, alu_op, check_overflow, check_zero
   );
 
   modport tb (
     output opcode, funct, alu_zero, overflow,
     input halt, iREN, dREN, dWEN, RegDst, MemToReg, 
-    PCSrc, ALUSrc, RegWrite, MemWrite, MemRead, ExtOp, alu_op
+    PCSrc, ALUSrc, RegWrite, MemWrite, MemRead, ExtOp, alu_op, check_overflow, check_zero
   );
 
 endinterface

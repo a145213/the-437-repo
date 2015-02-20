@@ -22,10 +22,13 @@ module hazard_unit
   //
   // Variables
   //
-  logic ex_hazard;
-  logic mem_hazard;
   logic rs_hazard;
   logic rt_hazard;
+  logic branch_hazard;
+  logic beq_hazard;
+  logic bne_hazard;
+  logic beq, bne, branching;
+  logic jumping;
 
   // 
   // PC Write Enable Logic
@@ -34,21 +37,45 @@ module hazard_unit
             (huif.ihit & !huif.dhit) &&
             !(
               (rs_hazard || rt_hazard)
-            );
+            ) ||
+            jumping;
 
   //
   // Hazard detections
   //
-  assign ex_hazard = (huif.ex_wsel == huif.rs) || (huif.ex_wsel == huif.rt);
-  assign mem_hazard = (huif.mem_wsel == huif.rs) || (huif.mem_wsel == huif.rt);
   assign rs_hazard = (huif.rs != 0) && ((huif.ex_wsel == huif.rs) || (huif.mem_wsel == huif.rs));
   assign rt_hazard = (huif.rt != 0) && ((huif.ex_wsel == huif.rt) || (huif.mem_wsel == huif.rt));
 
   //
+  // Branch detections
+  //
+  assign beq_hazard = huif.check_zero && !huif.alu_zero;
+  assign bne_hazard = !huif.check_zero && huif.alu_zero;
+  assign branch_hazard = ((beq_hazard || bne_hazard) && (huif.PCSrc == 1));
+  assign beq = huif.check_zero && huif.alu_zero;
+  assign bne = !huif.check_zero && !huif.alu_zero;
+  assign branching = (huif.PCSrc == 1) && (beq || bne);
+  always_comb begin
+    if (branch_hazard) begin
+      huif.PCSrc_check = 0;
+    end else begin
+      huif.PCSrc_check = huif.PCSrc;
+    end
+  end
+
+
+  //
+  // Jump detections
+  //
+  assign jumping = (huif.PCSrc == 2) || (huif.PCSrc == 3);
+  
+  //
   // Fetch-Decode Latch Logic
   //
   always_comb begin
-  	if (rs_hazard || rt_hazard) begin
+  	if (branching || jumping) begin
+      huif.fd_state = PIPE_NOP;
+    end else if (rs_hazard || rt_hazard) begin
       huif.fd_state = PIPE_STALL;
     end else if (huif.ihit && !huif.dhit) begin
       huif.fd_state = PIPE_ENABLE;
@@ -61,7 +88,9 @@ module hazard_unit
   // Decode-Execute Latch Logic
   //
   always_comb begin
-  	if (rs_hazard || rt_hazard) begin
+  	if (branching || jumping) begin
+      huif.de_state = PIPE_NOP;
+    end else if (rs_hazard || rt_hazard) begin
       huif.de_state = PIPE_NOP;
     end else if (huif.ihit && !huif.dhit) begin
       huif.de_state = PIPE_ENABLE;
@@ -74,11 +103,15 @@ module hazard_unit
   // Execute-Memory Latch Logic
   //
   always_comb begin
-  	if (huif.ihit && !huif.dhit) begin
+  	if (branching || jumping) begin
+      huif.em_state = PIPE_NOP;
+    end else if (huif.ihit && !huif.dhit) begin
   		huif.em_state = PIPE_ENABLE;
   	end else if (!huif.ihit || huif.dhit) begin
   		huif.em_state = PIPE_NOP;
-  	end
+  	end else begin
+      huif.em_state = PIPE_STALL;
+    end
   end
 
   //

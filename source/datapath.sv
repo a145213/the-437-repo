@@ -28,10 +28,12 @@ module datapath (
   // import types
   import cpu_types_pkg::*;
 
-  // pc init
+  // PC Init
   parameter PC_INIT = 0;
 
-  // interfaces
+  //
+  // Interfaces
+  //
   register_file_if  rfif();
   pc_if             pcif();
   control_unit_if   cuif();
@@ -53,9 +55,37 @@ module datapath (
   pipeline_fetch_decode FD (CLK, nRST, plif);
   hazard_unit HU (huif);
 
+  //
+  // Variables for datapath
+  //
   word_t pc, pc4, npc;
+  r_t rtype;
+  i_t itype;
+  j_t jtype;
 
-  //assign dpif.halt = cuif.halt;
+  // "ex_wsel" is an internal signal used to connect to
+  // the hazard unit for hazard detection within 
+  // the execute stage
+  regbits_t ex_wsel;
+
+
+  //
+  // Hazard Unit
+  //
+  assign huif.dhit = dpif.dhit;
+  assign huif.ihit = dpif.ihit;
+  assign huif.alu_zero = plif.zero_mem;
+  assign huif.check_zero = plif.check_zero_mem;
+  assign huif.rs = rtype.rs;
+  assign huif.rt = rtype.rt;
+  assign huif.ex_wsel = ex_wsel;
+  assign huif.mem_wsel = plif.regWSEL_mem;
+  assign huif.PCSrc = plif.PCSrc_mem;
+
+  //
+  // Halt latch
+  // - is this needed in a pipelined design?
+  //
   always_ff @ (posedge CLK, negedge nRST)begin
     if (!nRST)
       dpif.halt <= 0;
@@ -63,23 +93,23 @@ module datapath (
       dpif.halt <= 1;
   end
 
-  //---------------------------i am der----------------------------------
 
-  // fetch stage
-  //assign plif.en_fd = dpif.ihit && !dpif.dhit;
-  //assign plif.flush_fd = !dpif.ihit || dpif.dhit;
-  //assign plif.flush_fd = 0;
-  assign plif.fd_state = huif.fd_state;
 
-  assign plif.instr_fet = dpif.imemload;
-  assign plif.pc4_fet = pc4;
+  //
+  // ################################################
+  // ################ BEGIN PIPELINE ################
+  // ################################################
+  //
 
+  //
+  // Fetch Logic + PC
+  //
   always_comb begin
-    if (plif.PCSrc_mem == 0)
+    if (huif.PCSrc_check == 0)
       npc = pc4;
-    else if (plif.PCSrc_mem == 1)
+    else if (huif.PCSrc_check == 1)
       npc = plif.baddr_mem;
-    else if (plif.PCSrc_mem == 2)
+    else if (huif.PCSrc_check == 2)
       npc = plif.jaddr_mem;
     else
       npc = plif.rdat1_mem;
@@ -94,15 +124,24 @@ module datapath (
     .data_out (pc4)
   );
 
-  // decode stage
-  //assign plif.en_de = dpif.ihit && !dpif.dhit;
-  //assign plif.flush_de = !dpif.ihit && !dpif.dhit;
-  //assign plif.flush_de = 0;
-  assign plif.de_state = huif.de_state;
+  assign pcif.PC_WEN = huif.PC_WEN;
+  assign dpif.dmemREN = plif.dREN_mem;
+  assign dpif.dmemWEN = plif.dWEN_mem;
+  assign dpif.imemaddr = pc;
+  assign dpif.imemREN = 1;
 
-  r_t rtype;
-  i_t itype;
-  j_t jtype;
+
+  //
+  // Fetch-Decode Latch
+  //
+  assign plif.fd_state = huif.fd_state;
+  assign plif.instr_fet = dpif.imemload;
+  assign plif.pc4_fet = pc4;
+
+
+  //
+  // Decode Logic
+  //
   assign rtype = plif.instr_dec;
   assign itype = plif.instr_dec;
   assign jtype = plif.instr_dec;
@@ -113,6 +152,10 @@ module datapath (
   assign cuif.funct = rtype.funct;
   assign cuif.opcode = rtype.opcode;
 
+  //
+  // Decode-Execute Latch
+  //
+  assign plif.de_state = huif.de_state;
   assign plif.RegDst_dec = cuif.RegDst;
   assign plif.ALUSrc_dec = cuif.ALUSrc;
   assign plif.PCSrc_dec = cuif.PCSrc;
@@ -129,24 +172,14 @@ module datapath (
   assign plif.rd_dec = rtype.rd;
   assign plif.rt_dec = rtype.rt;
   assign plif.alu_op_dec = cuif.alu_op;
+  assign plif.check_zero_dec = cuif.check_zero;
+  assign plif.check_overflow_dec = cuif.check_overflow;
 
-
-  // execute stage
-  //assign plif.en_em = dpif.ihit && !dpif.dhit;
-  //assign plif.flush_em = !dpif.ihit && !dpif.dhit;
-  //assign plif.flush_em = !dpif.ihit || dpif.dhit;
-  //assign plif.flush_em = 0;
-  assign plif.em_state = huif.em_state;
-
+  //
+  // Execute Logic
+  //
   assign aluif.alu_op = plif.alu_op_ex;
   assign aluif.port_a = plif.rdat1_ex;
-  assign plif.port_o_ex = aluif.port_o;
-  assign plif.overflow_ex = aluif.overflow;
-  assign plif.zero_ex = aluif.zero;
-  assign plif.lui_ex = {plif.sign_ext_ex,16'h0000};
-  assign plif.jaddr_ex = {plif.pc4_ex[WORD_W-1:WORD_W-4],(plif.jaddr_ex << 2)};
-  assign plif.baddr_ex = (plif.lui_ex << 2) + plif.pc4_ex;
-  assign plif.shift_amt_dec = rtype.shamt;
 
   always_comb begin
     if (plif.ALUSrc_ex == 0)
@@ -157,9 +190,6 @@ module datapath (
       aluif.port_b = {27'h0000000,plif.shift_amt_ex};
   end
 
-  // Need internal signal to connect to HU
-  regbits_t ex_wsel;
-  assign plif.regWSEL_ex = ex_wsel;
   always_comb begin
     if (plif.RegDst_ex == 0)
       ex_wsel = plif.rd_ex;
@@ -169,19 +199,35 @@ module datapath (
       ex_wsel = 32'd31;
   end
 
-  // memory stage
-  //assign plif.en_mw = dpif.ihit || dpif.dhit;
-  //assign plif.flush_mw = !dpif.ihit || dpif.dhit;
-  //assign plif.flush_mw = 0;
-  assign plif.mw_state = huif.mw_state;
+  //
+  // Execute-Memory Latch
+  //
+  assign plif.em_state = huif.em_state;
+  assign plif.port_o_ex = aluif.port_o;
+  assign plif.overflow_ex = aluif.overflow;
+  assign plif.zero_ex = aluif.zero;
+  assign plif.lui_ex = {plif.sign_ext_ex,16'h0000};
+  assign plif.jaddr_ex = {plif.pc4_ex[WORD_W-1:WORD_W-4],(plif.sign_ext_ex << 2)};
+  assign plif.baddr_ex = (plif.sign_ext_ex << 2) + plif.pc4_ex;
+  assign plif.shift_amt_dec = rtype.shamt;
+  assign plif.regWSEL_ex = ex_wsel;
 
-
+  //
+  // Memory Logic
+  //
   assign dpif.dmemstore = plif.rdat2_mem;
   assign dpif.dmemaddr = plif.port_o_mem; // This is a dumb fix...why does it need to come from the execute stage???
   assign rfif.wsel = plif.regWSEL_wb;
+  
+  //
+  // Memory-Write Back Logic
+  //
+  assign plif.mw_state = huif.mw_state;
   assign plif.dmemload_mem = dpif.dmemload;
 
-  // write back stage
+  //
+  // Write Back Logic
+  //
   always_comb begin
     if (plif.MemToReg_wb == 0)
       rfif.wdat = plif.dmemload_wb;
@@ -193,98 +239,9 @@ module datapath (
       rfif.wdat = plif.lui_wb;
   end
 
-  //--------------------------i am the der--------------------------------
-  
-  // control unit
-  //assign cuif.opcode = opcode_t'(dpif.imemload[31:26]);
-  //assign cuif.funct = funct_t'(dpif.imemload[5:0]);
-  //assign cuif.alu_zero = aluif.zero;
-  
-  // request unit
-  //assign ruif.dhit = dpif.dhit;
-  //assign ruif.ihit = dpif.ihit;
-  //assign cuif.iREN = 1;
-  //assign ruif.iREN = cuif.iREN || dpif.ihit;
-  //assign ruif.dWEN = plif.dWEN_mem;
-  //assign ruif.dREN = plif.dREN_mem;
-  
-  //assign pcif.PC_WEN = dpif.ihit & !dpif.dhit;
-  assign pcif.PC_WEN = huif.PC_WEN;
-  always_comb begin
-    /*
-    if (dpif.ihit) begin
-      dpif.dmemREN = plif.dREN_mem;
-      dpif.dmemWEN = plif.dWEN_mem;
-    end
-    else if (dpif.dhit) begin
-      dpif.dmemREN = 0;
-      dpif.dmemWEN = 0;
-    end
-    */
-    //dpif.dmemREN = plif.dREN_mem & !dpif.dhit;
-    //dpif.dmemWEN = plif.dWEN_mem & !dpif.dhit;
-
-    dpif.dmemREN = plif.dREN_mem;
-    dpif.dmemWEN = plif.dWEN_mem;
-  end
-  
-  //assign dpif.dmemREN = ruif.dmemREN;
-  //assign dpif.dmemWEN = ruif.dmemWEN;
-  assign dpif.imemaddr = pc;
-  assign dpif.imemREN = 1;
-
-  // register file
-  //assign rfif.rsel1 = dpif.imemload[25:21];
-  //assign rfif.rsel2 = dpif.imemload[20:16];
-  //assign rfif.WEN = cuif.RegWrite;
-  //assign dpif.dmemstore = rfif.rdat2;
-
-  // ALU
-  //assign aluif.alu_op = cuif.alu_op;
-  //assign aluif.port_a = rfif.rdat1;
-  //assign dpif.dmemaddr = aluif.port_o;
-
-
-
-  /*// shamt mux
-  always_comb begin
-    if (cuif.shamt)
-      seif.data_in = dpif.imemload[10:6];
-    else
-      seif.data_in = dpif.imemload[15:0];
-  end*/
-  
-  /*// Jump mux
-  always_comb begin
-    if (cuif.Jump == 0)
-      pcif.pc_input = pc_src_out;
-    else if (cuif.Jump == 1)
-      pcif.pc_input = aluif.port_o;
-    else
-      pcif.pc_input = {pc_add_4[31:28],dpif.imemload[25:0],2'b00}; 
-  end
-  
-  // Jal mux
-  always_comb begin
-    if (cuif.Jal == 0)
-      rfif.wdat = pcif.pc_output + 4;         // jump_out
-    else if (cuif.Jal == 1)
-      rfif.wdat = JAL_in;
-    else
-      rfif.wdat = seif.data_out << 16;
-  end*/
-
-
   //
-  // Hazard Unit
-  //
-  assign huif.dhit = dpif.dhit;
-  assign huif.ihit = dpif.ihit;
-  //assign huif.instr = dpif.imemload;
-  assign huif.alu_zero = aluif.zero;
-  assign huif.rs = rtype.rs;
-  assign huif.rt = rtype.rt;
-  assign huif.ex_wsel = ex_wsel;
-  assign huif.mem_wsel = plif.regWSEL_mem;
+  // ################################################
+  // ################# END PIPELINE #################
+  // ################################################
 
 endmodule
