@@ -12,4 +12,4 @@ add wave -position insertpoint -group RAMIF  sim:/system_tb/DUT/RAM/ramif/*
 add wave -position insertpoint -group PCIF sim:/system_tb/DUT/CPU/DP/pcif/*
 add wave -position insertpoint -group HUIF sim:/system_tb/DUT/CPU/DP/huif/*
 add wave -position insertpoint -group PLIF sim:/system_tb/DUT/CPU/DP/plif/*
-
+add wave -position insertpoint -group FUIF sim:/system_tb/DUT/CPU/DP/fuif/*

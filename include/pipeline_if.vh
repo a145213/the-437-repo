@@ -27,7 +27,8 @@ interface pipeline_if;
   logic check_zero_dec, check_overflow_dec;
 
   word_t rdat1_dec, rdat2_dec;
-  word_t sign_ext_dec, taddr_dec, jaddr_dec, rd_dec, rt_dec;
+  word_t sign_ext_dec, taddr_dec, jaddr_dec;
+  regbits_t rs_dec, rd_dec, rt_dec;
   logic [SHAM_W-1:0] shift_amt_dec;
   aluop_t alu_op_dec;
 
@@ -39,7 +40,8 @@ interface pipeline_if;
   logic check_zero_ex, check_overflow_ex;
 
   word_t rdat1_ex, rdat2_ex;
-  word_t sign_ext_ex, taddr_ex, jaddr_ex, rd_ex, rt_ex;
+  word_t sign_ext_ex, taddr_ex, jaddr_ex;
+  regbits_t rs_ex, rd_ex, rt_ex;
   logic [SHAM_W-1:0] shift_amt_ex;
   word_t pc4_ex, lui_ex, baddr_ex, port_o_ex;
   regbits_t regWSEL_ex;
@@ -54,6 +56,7 @@ interface pipeline_if;
   word_t port_o_mem, overflow_mem, lui_mem, pc4_mem, 
         jaddr_mem, baddr_mem, dmemload_mem;
   regbits_t regWSEL_mem;
+  regbits_t rs_mem, rt_mem;
   logic zero_mem;
   logic check_zero_mem, check_overflow_mem;
 
@@ -72,11 +75,11 @@ interface pipeline_if;
   modport de (
     input RegDst_dec, ALUSrc_dec, PCSrc_dec, MemToReg_dec, dREN_dec, 
       dWEN_dec, RegWrite_dec, halt_dec, rdat1_dec, rdat2_dec, sign_ext_dec,
-      taddr_dec, rd_dec, rt_dec, pc4_dec, alu_op_dec, shift_amt_dec, de_state,
+      taddr_dec, rs_dec, rd_dec, rt_dec, pc4_dec, alu_op_dec, shift_amt_dec, de_state,
       check_zero_dec, check_overflow_dec,
     output RegDst_ex, ALUSrc_ex, PCSrc_ex, MemToReg_ex, dREN_ex, 
       dWEN_ex, RegWrite_ex, halt_ex, rdat1_ex, rdat2_ex, sign_ext_ex,
-      taddr_ex, rd_ex, rt_ex, shift_amt_ex, pc4_ex, alu_op_ex, 
+      taddr_ex, rs_ex, rd_ex, rt_ex, shift_amt_ex, pc4_ex, alu_op_ex, 
       check_zero_ex, check_overflow_ex
   );
 
@@ -85,9 +88,11 @@ interface pipeline_if;
     input PCSrc_ex, dWEN_ex, dREN_ex, RegWrite_ex, halt_ex, MemToReg_ex,
       rdat1_ex, rdat2_ex, port_o_ex, zero_ex, overflow_ex, lui_ex, pc4_ex,
       jaddr_ex, regWSEL_ex, baddr_ex, em_state, check_zero_ex, check_overflow_ex,
+      rs_ex, rt_ex,
     output PCSrc_mem, dWEN_mem, dREN_mem, RegWrite_mem, halt_mem, MemToReg_mem,
       rdat1_mem, rdat2_mem, port_o_mem, zero_mem, overflow_mem, lui_mem, 
-      pc4_mem, jaddr_mem, regWSEL_mem, baddr_mem, check_zero_mem, check_overflow_mem
+      pc4_mem, jaddr_mem, regWSEL_mem, baddr_mem, check_zero_mem, check_overflow_mem,
+      rs_mem, rt_mem
   );
 
   // memory-write_back

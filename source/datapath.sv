@@ -20,6 +20,8 @@
 `include "request_unit_if.vh"
 `include "sign_extender_if.vh"
 `include "pipeline_if.vh"
+`include "hazard_unit_if.vh"
+`include "forwarding_unit_if.vh"
 
 module datapath (
   input logic CLK, nRST,
@@ -34,14 +36,15 @@ module datapath (
   //
   // Interfaces
   //
-  register_file_if  rfif();
-  pc_if             pcif();
-  control_unit_if   cuif();
-  alu_if            aluif();
-  request_unit_if   ruif();
-  sign_extender_if  seif();
-  pipeline_if       plif();
-  hazard_unit_if    huif();
+  register_file_if    rfif();
+  pc_if               pcif();
+  control_unit_if     cuif();
+  alu_if              aluif();
+  request_unit_if     ruif();
+  sign_extender_if    seif();
+  pipeline_if         plif();
+  hazard_unit_if      huif();
+  forwarding_unit_if  fuif();
 
   register_file RF (CLK, nRST, rfif);
   pc PC (CLK, nRST, pcif);
@@ -54,6 +57,7 @@ module datapath (
   pipeline_execute_memory EM (CLK, nRST, plif);
   pipeline_fetch_decode FD (CLK, nRST, plif);
   hazard_unit HU (huif);
+  forwarding_unit FU (fuif);
 
   //
   // Variables for datapath
@@ -62,6 +66,8 @@ module datapath (
   r_t rtype;
   i_t itype;
   j_t jtype;
+  word_t pre_port_b;
+  word_t reg_wdat;
 
   // "ex_wsel" is an internal signal used to connect to
   // the hazard unit for hazard detection within 
@@ -78,9 +84,23 @@ module datapath (
   assign huif.check_zero = plif.check_zero_mem;
   assign huif.rs = rtype.rs;
   assign huif.rt = rtype.rt;
-  assign huif.ex_wsel = ex_wsel;
-  assign huif.mem_wsel = plif.regWSEL_mem;
+  //assign huif.ex_wsel = ex_wsel;
+  assign huif.ex_wsel = regbits_t'{5'b00000};
+  //assign huif.mem_wsel = plif.regWSEL_mem;
+  assign huif.mem_wsel = regbits_t'{5'b00000};
   assign huif.PCSrc = plif.PCSrc_mem;
+
+  //
+  // Forwarding Unit
+  //
+  assign fuif.rs_ex = plif.rs_ex;
+  assign fuif.rt_ex = plif.rt_ex;
+  assign fuif.rs_mem = plif.rs_mem;
+  assign fuif.rt_mem = plif.rt_mem;
+  //assign fuif.ex_wsel = ex_wsel;
+  assign fuif.ex_wsel = regbits_t'{5'b00000};
+  assign fuif.mem_wsel = plif.regWSEL_mem;
+  assign fuif.wb_wsel = plif.regWSEL_wb;
 
   //
   // Halt latch
@@ -171,6 +191,7 @@ module datapath (
   assign plif.taddr_dec = jtype.addr;
   assign plif.rd_dec = rtype.rd;
   assign plif.rt_dec = rtype.rt;
+  assign plif.rs_dec = rtype.rs;
   assign plif.alu_op_dec = cuif.alu_op;
   assign plif.check_zero_dec = cuif.check_zero;
   assign plif.check_overflow_dec = cuif.check_overflow;
@@ -179,11 +200,11 @@ module datapath (
   // Execute Logic
   //
   assign aluif.alu_op = plif.alu_op_ex;
-  assign aluif.port_a = plif.rdat1_ex;
+  //assign aluif.port_a = plif.rdat1_ex;
 
   always_comb begin
     if (plif.ALUSrc_ex == 0)
-      aluif.port_b = plif.rdat2_ex;
+      aluif.port_b = pre_port_b;
     else if (plif.ALUSrc_ex == 1)
       aluif.port_b = plif.sign_ext_ex;
     else
@@ -198,6 +219,29 @@ module datapath (
     else
       ex_wsel = 32'd31;
   end
+
+  // Port A Forwarding Mux
+  always_comb begin
+    if (fuif.fsel_a == 0) begin
+      aluif.port_a = plif.rdat1_ex;
+    end else if(fuif.fsel_a == 1) begin
+      aluif.port_a = plif.port_o_mem;
+    end else begin
+      aluif.port_a = reg_wdat;
+    end
+  end
+
+  // Port B Forwarding Mux
+  always_comb begin
+    if (fuif.fsel_b == 0) begin
+      pre_port_b = plif.rdat2_ex;
+    end else if(fuif.fsel_b == 1) begin
+      pre_port_b = plif.port_o_mem;
+    end else begin
+      pre_port_b = reg_wdat;
+    end
+  end
+
 
   //
   // Execute-Memory Latch
@@ -215,9 +259,18 @@ module datapath (
   //
   // Memory Logic
   //
-  assign dpif.dmemstore = plif.rdat2_mem;
+  //assign dpif.dmemstore = plif.rdat2_mem;
   assign dpif.dmemaddr = plif.port_o_mem; // This is a dumb fix...why does it need to come from the execute stage???
   assign rfif.wsel = plif.regWSEL_wb;
+
+  // Memory Store Mux
+  always_comb begin
+    if (fuif.fsel_sw == 0) begin
+      dpif.dmemstore = plif.rdat2_mem;
+    end else begin
+      dpif.dmemstore = plif.port_o_wb;
+    end
+  end
   
   //
   // Memory-Write Back Logic
@@ -228,20 +281,22 @@ module datapath (
   //
   // Write Back Logic
   //
+  assign rfif.wdat = reg_wdat;
   always_comb begin
     if (plif.MemToReg_wb == 0)
-      rfif.wdat = plif.dmemload_wb;
+      reg_wdat = plif.dmemload_wb;
     else if (plif.MemToReg_wb == 1)
-      rfif.wdat = plif.port_o_wb;
+      reg_wdat = plif.port_o_wb;
     else if (plif.MemToReg_wb == 2)
-      rfif.wdat = plif.pc4_wb;
+      reg_wdat = plif.pc4_wb;
     else
-      rfif.wdat = plif.lui_wb;
+      reg_wdat = plif.lui_wb;
   end
 
   //
   // ################################################
   // ################# END PIPELINE #################
   // ################################################
+  //
 
 endmodule

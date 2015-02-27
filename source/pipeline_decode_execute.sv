@@ -23,6 +23,7 @@ always_ff @ (posedge CLK, negedge nRST) begin
     deif.rdat2_ex <= 0;
     deif.sign_ext_ex <= 0;
     deif.taddr_ex <= 0;
+    deif.rs_ex <= 0;
     deif.rd_ex <= 0;
     deif.rt_ex <= 0;
     deif.shift_amt_ex <= 0;
@@ -44,6 +45,7 @@ always_ff @ (posedge CLK, negedge nRST) begin
     deif.rdat2_ex <= deif.rdat2_dec;
     deif.sign_ext_ex <= deif.sign_ext_dec;
     deif.taddr_ex <= deif.taddr_dec;
+    deif.rs_ex <= deif.rs_dec;
     deif.rd_ex <= deif.rd_dec;
     deif.rt_ex <= deif.rt_dec;
     deif.shift_amt_ex <= deif.shift_amt_dec;
@@ -64,6 +66,7 @@ always_ff @ (posedge CLK, negedge nRST) begin
     deif.rdat2_ex <= 0;
     deif.sign_ext_ex <= 0;
     deif.taddr_ex <= 0;
+    deif.rs_ex <= 0;
     deif.rd_ex <= 0;
     deif.rt_ex <= 0;
     deif.shift_amt_ex <= 0;
