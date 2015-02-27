@@ -64,6 +64,7 @@ interface pipeline_if;
   word_t dmemload_wb, port_o_wb, lui_wb, pc4_wb;
   regbits_t regWSEL_wb;
   logic [1:0] MemToReg_wb;
+  word_t rdat2_wb;
 
   // fetch-decode
   modport fd (
@@ -98,8 +99,9 @@ interface pipeline_if;
   // memory-write_back
   modport mw (
     input RegWrite_mem, halt_mem, MemToReg_mem, dmemload_mem, port_o_mem, lui_mem,
-      pc4_mem, regWSEL_mem, mw_state,
-    output RegWrite_wb, halt_wb, dmemload_wb, port_o_wb, lui_wb, pc4_wb, regWSEL_wb, MemToReg_wb
+      pc4_mem, regWSEL_mem, mw_state, rdat2_mem,
+    output RegWrite_wb, halt_wb, dmemload_wb, port_o_wb, lui_wb, pc4_wb, regWSEL_wb, MemToReg_wb,
+    rdat2_wb
   );
 
  endinterface

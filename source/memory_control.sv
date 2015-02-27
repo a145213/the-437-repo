@@ -44,10 +44,10 @@ always_comb begin
       ccif.dwait = 1;
     end
     BUSY: begin
-      //ccif.iwait = 1;
-      //ccif.dwait = 1;
-      ccif.dwait = ccif.iREN;
-      ccif.iwait = ccif.dWEN || ccif.dREN;
+      ccif.iwait = 1;
+      ccif.dwait = 1;
+      //ccif.dwait = ccif.iREN;
+      //ccif.iwait = ccif.dWEN || ccif.dREN;
     end
     ACCESS: begin
     
@@ -57,7 +57,7 @@ always_comb begin
       end
       else if (ccif.iREN) begin
         ccif.iwait = 0;
-        ccif.dwait = 0;
+        ccif.dwait = 1;
       end
     
       //ccif.iwait = ccif.dREN || ccif.dWEN;

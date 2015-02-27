@@ -63,8 +63,6 @@ module forwarding_unit
   //
   // Memory Store Mux Select Logic
   //
-  // Detect a hazard between decode and execute
-  // Need a fix in mem stage
   always_comb begin
     if (haz_rt_ex) begin
       fuif.fsel_sw = 1'd1;

@@ -15,23 +15,34 @@ interface hazard_unit_if;
     logic alu_zero;
     logic check_zero;
     logic ihit, dhit;
+    logic dWEN, dREN;
+    regbits_t rs_ex, rt_ex, rs_mem, rt_mem;
+    regbits_t wb_wsel;
 
     // Outputs
     logic PC_WEN;
     logic [1:0] PCSrc_check;
     pipe_state_t fd_state, de_state, em_state, mw_state;
+    logic [1:0] fsel_a, fsel_b;
+    logic fsel_sw;
+    logic branching;
+    logic jumping;
 
  
 // Hazard Unit ports
 modport hu (
         input alu_zero, ihit, dhit, rs, rt, ex_wsel, mem_wsel, PCSrc, check_zero,
-        output fd_state, de_state, em_state, mw_state, PC_WEN, PCSrc_check
+        dWEN, dREN, rs_ex, rt_ex, rs_mem, rt_mem, wb_wsel,
+        output fd_state, de_state, em_state, mw_state, PC_WEN, PCSrc_check,
+        fsel_a, fsel_b, fsel_sw, branching, jumping
 );
 
 // Hazard Unit TB
 modport tb (
         output alu_zero, ihit, dhit, rs, rt, ex_wsel, mem_wsel, PCSrc, check_zero,
-        input fd_state, de_state, em_state, mw_state, PC_WEN, PCSrc_check
+        dWEN, dREN, rs_ex, rt_ex, rs_mem, rt_mem, wb_wsel,
+        input fd_state, de_state, em_state, mw_state, PC_WEN, PCSrc_check,
+        fsel_a, fsel_b, fsel_sw, branching, jumping
 );
 
 endinterface

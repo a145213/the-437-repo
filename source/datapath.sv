@@ -44,7 +44,7 @@ module datapath (
   sign_extender_if    seif();
   pipeline_if         plif();
   hazard_unit_if      huif();
-  forwarding_unit_if  fuif();
+  //forwarding_unit_if  huif();
 
   register_file RF (CLK, nRST, rfif);
   pc PC (CLK, nRST, pcif);
@@ -57,7 +57,7 @@ module datapath (
   pipeline_execute_memory EM (CLK, nRST, plif);
   pipeline_fetch_decode FD (CLK, nRST, plif);
   hazard_unit HU (huif);
-  forwarding_unit FU (fuif);
+  //forwarding_unit FU (huif);
 
   //
   // Variables for datapath
@@ -85,22 +85,24 @@ module datapath (
   assign huif.rs = rtype.rs;
   assign huif.rt = rtype.rt;
   //assign huif.ex_wsel = ex_wsel;
-  assign huif.ex_wsel = regbits_t'{5'b00000};
+  //assign huif.ex_wsel = regbits_t'{5'b00000};
   //assign huif.mem_wsel = plif.regWSEL_mem;
-  assign huif.mem_wsel = regbits_t'{5'b00000};
+  //assign huif.mem_wsel = regbits_t'{5'b00000};
   assign huif.PCSrc = plif.PCSrc_mem;
+  assign huif.dWEN = plif.dWEN_mem;
+  assign huif.dREN = plif.dREN_mem;
 
   //
   // Forwarding Unit
   //
-  assign fuif.rs_ex = plif.rs_ex;
-  assign fuif.rt_ex = plif.rt_ex;
-  assign fuif.rs_mem = plif.rs_mem;
-  assign fuif.rt_mem = plif.rt_mem;
-  //assign fuif.ex_wsel = ex_wsel;
-  assign fuif.ex_wsel = regbits_t'{5'b00000};
-  assign fuif.mem_wsel = plif.regWSEL_mem;
-  assign fuif.wb_wsel = plif.regWSEL_wb;
+  assign huif.rs_ex = plif.rs_ex;
+  assign huif.rt_ex = plif.rt_ex;
+  assign huif.rs_mem = plif.rs_mem;
+  assign huif.rt_mem = plif.rt_mem;
+  assign huif.ex_wsel = ex_wsel;
+  //assign huif.ex_wsel = regbits_t'{5'b00000};
+  assign huif.mem_wsel = plif.regWSEL_mem;
+  assign huif.wb_wsel = plif.regWSEL_wb;
 
   //
   // Halt latch
@@ -145,8 +147,6 @@ module datapath (
   );
 
   assign pcif.PC_WEN = huif.PC_WEN;
-  assign dpif.dmemREN = plif.dREN_mem;
-  assign dpif.dmemWEN = plif.dWEN_mem;
   assign dpif.imemaddr = pc;
   assign dpif.imemREN = 1;
 
@@ -222,23 +222,23 @@ module datapath (
 
   // Port A Forwarding Mux
   always_comb begin
-    if (fuif.fsel_a == 0) begin
+    if (huif.fsel_a == 0) begin
       aluif.port_a = plif.rdat1_ex;
-    end else if(fuif.fsel_a == 1) begin
-      aluif.port_a = plif.port_o_mem;
-    end else begin
+    end else if(huif.fsel_a == 1) begin
       aluif.port_a = reg_wdat;
+    end else begin
+      aluif.port_a = (plif.MemToReg_mem == 3)?(plif.lui_mem):(plif.port_o_mem);
     end
   end
 
   // Port B Forwarding Mux
   always_comb begin
-    if (fuif.fsel_b == 0) begin
+    if (huif.fsel_b == 0) begin
       pre_port_b = plif.rdat2_ex;
-    end else if(fuif.fsel_b == 1) begin
-      pre_port_b = plif.port_o_mem;
-    end else begin
+    end else if(huif.fsel_b == 1) begin
       pre_port_b = reg_wdat;
+    end else begin
+      pre_port_b = plif.port_o_mem;
     end
   end
 
@@ -260,18 +260,45 @@ module datapath (
   // Memory Logic
   //
   //assign dpif.dmemstore = plif.rdat2_mem;
-  assign dpif.dmemaddr = plif.port_o_mem; // This is a dumb fix...why does it need to come from the execute stage???
+  assign dpif.dmemaddr = plif.port_o_mem; 
   assign rfif.wsel = plif.regWSEL_wb;
+
+  
+  //assign dpif.dmemWEN = plif.dWEN_mem;
+  
+  always_ff @(posedge CLK, negedge nRST) begin
+    if (!nRST) begin
+      dpif.dmemWEN <= 0;
+    end else if (dpif.dhit || huif.branching || huif.jumping) begin
+      dpif.dmemWEN <= 0;
+    end else begin
+      dpif.dmemWEN <= plif.dWEN_ex;
+    end
+  end
+  
+
+  //assign dpif.dmemREN = plif.dREN_mem;
+  
+  always_ff @(posedge CLK, negedge nRST) begin
+    if (!nRST) begin
+      dpif.dmemREN <= 0;
+    end else if (dpif.dhit || huif.branching || huif.jumping) begin
+      dpif.dmemREN <= 0;
+    end else begin
+      dpif.dmemREN <= plif.dREN_ex;
+    end
+  end
+  
 
   // Memory Store Mux
   always_comb begin
-    if (fuif.fsel_sw == 0) begin
+    if (huif.fsel_sw == 0) begin
       dpif.dmemstore = plif.rdat2_mem;
     end else begin
       dpif.dmemstore = plif.port_o_wb;
     end
   end
-  
+
   //
   // Memory-Write Back Logic
   //
