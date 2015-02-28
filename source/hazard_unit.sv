@@ -239,10 +239,12 @@ module hazard_unit
   //
   always_comb begin
     if (haz_rt_ex) begin
-      huif.fsel_sw = 1'd1;
+      huif.fsel_sw = 2'd1;
+    end else if (haz_rt_wb) begin
+      huif.fsel_sw = 2'd2;
     end else begin
       // No forwarding
-      huif.fsel_sw = 1'd0;
+      huif.fsel_sw = 2'd0;
     end
   end
 

@@ -40,7 +40,7 @@ always_ff @ (posedge CLK, negedge nRST) begin
     emif.RegWrite_mem <= emif.RegWrite_ex;
     emif.halt_mem <=  emif.halt_ex;
     emif.rdat1_mem <= emif.rdat1_ex;
-    emif.rdat2_mem <= emif.rdat2_ex;
+    emif.rdat2_mem <= emif.memstore_ex;
     emif.jaddr_mem <= emif.jaddr_ex;
     emif.pc4_mem <= emif.pc4_ex;
     emif.port_o_mem <= emif.port_o_ex;

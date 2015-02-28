@@ -59,6 +59,7 @@ interface pipeline_if;
   regbits_t rs_mem, rt_mem;
   logic zero_mem;
   logic check_zero_mem, check_overflow_mem;
+  word_t memstore_ex;
 
   // memory-write_back
   word_t dmemload_wb, port_o_wb, lui_wb, pc4_wb;
@@ -87,7 +88,7 @@ interface pipeline_if;
   // execute-memory
   modport em (
     input PCSrc_ex, dWEN_ex, dREN_ex, RegWrite_ex, halt_ex, MemToReg_ex,
-      rdat1_ex, rdat2_ex, port_o_ex, zero_ex, overflow_ex, lui_ex, pc4_ex,
+      rdat1_ex, memstore_ex, port_o_ex, zero_ex, overflow_ex, lui_ex, pc4_ex,
       jaddr_ex, regWSEL_ex, baddr_ex, em_state, check_zero_ex, check_overflow_ex,
       rs_ex, rt_ex,
     output PCSrc_mem, dWEN_mem, dREN_mem, RegWrite_mem, halt_mem, MemToReg_mem,

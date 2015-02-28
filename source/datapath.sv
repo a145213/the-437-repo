@@ -255,6 +255,7 @@ module datapath (
   assign plif.baddr_ex = (plif.sign_ext_ex << 2) + plif.pc4_ex;
   assign plif.shift_amt_dec = rtype.shamt;
   assign plif.regWSEL_ex = ex_wsel;
+  assign plif.memstore_ex = pre_port_b;
 
   //
   // Memory Logic
@@ -295,7 +296,7 @@ module datapath (
     if (huif.fsel_sw == 0) begin
       dpif.dmemstore = plif.rdat2_mem;
     end else begin
-      dpif.dmemstore = plif.port_o_wb;
+      dpif.dmemstore = plif.dmemload_wb;
     end
   end
 
