@@ -96,9 +96,11 @@ module hazard_unit
     end else if (huif.ihit) begin
       huif.fd_state = PIPE_ENABLE;
     end else if (huif.dhit && huif.dREN) begin
-      huif.fd_state = PIPE_STALL;
+      huif.fd_state = PIPE_NOP;
     end else if (!huif.dhit && huif.dWEN) begin
       huif.fd_state = PIPE_STALL;
+    end else begin
+      huif.fd_state = PIPE_ENABLE;
     end
   end
 
@@ -125,9 +127,11 @@ module hazard_unit
     end else if (huif.ihit) begin
       huif.de_state = PIPE_ENABLE;
     end else if (huif.dhit && huif.dREN) begin
-      huif.de_state = PIPE_STALL;
+      huif.de_state = PIPE_ENABLE;
     end else if (!huif.dhit && huif.dWEN) begin
       huif.de_state = PIPE_STALL;
+    end else begin
+      huif.de_state = PIPE_ENABLE;
     end
   end
 
@@ -156,6 +160,8 @@ module hazard_unit
       huif.em_state = PIPE_ENABLE;
     end else if (!huif.dhit && huif.dWEN) begin
       huif.em_state = PIPE_STALL;
+    end else begin
+      huif.em_state = PIPE_ENABLE;
     end
   end
 
@@ -180,6 +186,8 @@ module hazard_unit
       huif.mw_state = PIPE_ENABLE;
     end else if (!huif.dhit && huif.dWEN) begin
       huif.mw_state = PIPE_STALL;
+    end else begin
+      huif.mw_state = PIPE_ENABLE;
     end
   end
 

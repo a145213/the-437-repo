@@ -121,6 +121,7 @@ module control_unit
       cuif.MemToReg = 0;
       cuif.dREN = 1;
       cuif.iREN = 0;
+      cuif.RegDst = 1;
     end
     SW: begin
       cuif.alu_op = ALU_ADD;

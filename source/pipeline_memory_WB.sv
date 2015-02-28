@@ -31,7 +31,8 @@ always_ff @ (posedge CLK, negedge nRST) begin
     mwif.pc4_wb <= mwif.pc4_mem;
     mwif.regWSEL_wb <= mwif.regWSEL_mem;
     mwif.rdat2_wb <= mwif.rdat2_mem;
-  end else if (mwif.mw_state == PIPE_NOP) begin
+  end 
+  /* else if (mwif.mw_state == PIPE_NOP) begin
     mwif.RegWrite_wb <= 0;
     mwif.halt_wb <= 0;
     mwif.MemToReg_wb <= 0;
@@ -42,6 +43,7 @@ always_ff @ (posedge CLK, negedge nRST) begin
     mwif.regWSEL_wb <= 0;
     mwif.rdat2_wb <= 0;
   end
+  */
 end
 
 endmodule

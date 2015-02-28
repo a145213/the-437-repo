@@ -50,10 +50,10 @@ module forwarding_unit
   always_comb begin
     if (haz_rt_mem) begin
       // Forward from memory stage
-      fuif.fsel_b = 2'd2;
+      fuif.fsel_b = 2'd1;
     end else if (haz_rt_wb) begin
       // Forward from write-back stage
-      fuif.fsel_b = 2'd1;
+      fuif.fsel_b = 2'd2;
     end else begin
       // No forwarding
       fuif.fsel_b = 2'd0;

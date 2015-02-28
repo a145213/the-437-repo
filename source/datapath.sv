@@ -227,7 +227,7 @@ module datapath (
     end else if(huif.fsel_a == 1) begin
       aluif.port_a = reg_wdat;
     end else begin
-      aluif.port_a = (plif.MemToReg_mem == 3)?(plif.lui_mem):(plif.port_o_mem);
+      aluif.port_a = (plif.MemToReg_mem == 3)?(plif.lui_mem):((plif.MemToReg_mem == 0)?(dpif.dmemload):(plif.port_o_mem));
     end
   end
 
@@ -238,7 +238,7 @@ module datapath (
     end else if(huif.fsel_b == 1) begin
       pre_port_b = reg_wdat;
     end else begin
-      pre_port_b = plif.port_o_mem;
+      pre_port_b = (plif.MemToReg_mem == 3)?(plif.lui_mem):((plif.MemToReg_mem == 0)?(dpif.dmemload):(plif.port_o_mem));
     end
   end
 
@@ -264,8 +264,8 @@ module datapath (
   assign rfif.wsel = plif.regWSEL_wb;
 
   
-  //assign dpif.dmemWEN = plif.dWEN_mem;
-  
+  assign dpif.dmemWEN = plif.dWEN_mem;
+  /*
   always_ff @(posedge CLK, negedge nRST) begin
     if (!nRST) begin
       dpif.dmemWEN <= 0;
@@ -275,10 +275,10 @@ module datapath (
       dpif.dmemWEN <= plif.dWEN_ex;
     end
   end
-  
+  */
 
-  //assign dpif.dmemREN = plif.dREN_mem;
-  
+  assign dpif.dmemREN = plif.dREN_mem;
+  /*
   always_ff @(posedge CLK, negedge nRST) begin
     if (!nRST) begin
       dpif.dmemREN <= 0;
@@ -288,7 +288,7 @@ module datapath (
       dpif.dmemREN <= plif.dREN_ex;
     end
   end
-  
+  */
 
   // Memory Store Mux
   always_comb begin
