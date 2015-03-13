@@ -50,6 +50,7 @@ module icache_tb;
   );
 `endif
 
+
   initial begin
     $display("Starting testbench..");
     // Initialize variables
@@ -67,7 +68,7 @@ module icache_tb;
     tb_stage = STAGE_CHECK_INVALID;
     nRST = 1;
 
-    
+
 
 
     @(negedge CLK);
