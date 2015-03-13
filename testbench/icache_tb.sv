@@ -43,7 +43,7 @@ module icache_tb;
   test PROG ();
   // DUT
 `ifndef MAPPED
-  icache DUT(CLK, nRST, ccif, dcif);
+  icache DUT(CLK, nRST, dcif, ccif);
 `else
   icache DUT(
     
@@ -61,15 +61,108 @@ module icache_tb;
     // Test ansynchronous reset
     //
     @(negedge CLK);
-    tb_stage = STAGE_POR;
     nRST = 0;
     
     @(negedge CLK);
-    tb_stage = STAGE_CHECK_INVALID;
     nRST = 1;
 
+    if (nRST != 1)
+      $display("nRST FAILED");
+    else $display("nRST PASSED");
 
+    ccif.iaddr = 0;
+    ccif.iREN = 0;
+    ccif.iwait = 1'b0;
+    @(posedge CLK);
+    @(posedge CLK);
+    nRST = 1;
+    @(posedge CLK);
+    dcif.imemREN = 1;
+    @(posedge CLK);
+    //testcase 1: read one instruction and then read the same one again
+    //also test allocate on miss
+    @(posedge CLK);
+    dcif.imemaddr = 32'd0;
+    ccif.iload = 32'hffffffff;
+    ccif.iwait = 1'b1;
+    @(posedge CLK);
+    ccif.iwait = 1'b0;
+    @(posedge CLK);
+    dcif.imemaddr = 32'd4;
+    ccif.iload = 32'h00000001;
+    ccif.iwait = 1'b1;
+    @(posedge CLK);
+    ccif.iwait = 1'b0;
+    @(posedge CLK);
+    dcif.imemaddr = 32'd8;
+    ccif.iload = 32'h00000002;
+    @(posedge CLK);
+    @(posedge CLK);
+    dcif.imemaddr = 32'd0;
+    dcif.imemREN = 1'b1;
+    @(posedge CLK);
+    dcif.imemREN = 1'b0;
 
+    //testcase 2: test same ndex different tag problem
+    /*dcif.imemaddr = 32'd60;
+    @(posedge CLK);
+    @(posedge CLK);
+    dcif.imemaddr = 32'd64;
+    @(posedge CLK);
+    @(posedge CLK);
+    dcif.imemaddr = 32'd68;
+    @(posedge CLK);
+    */
+    /* //load
+    dcif.imemaddr = 32'h00000000;
+    dcif.imemREN = 1'b1;
+    dcif.halt = 1'b0;
+    ccif.iwait = 1'b0;
+    ccif.iload = 32'hffffffff;
+    #(PERIOD*2);
+    @(negedge CLK);
+    ccif.iload = 32'h00000001;
+    @(negedge CLK);
+    ccif.iload = 32'h00000002;
+    @(posedge dcif.ihit);
+    ccif.iwait = 1;
+    @(posedge CLK);
+    dcif.imemREN = 1'b0;
+    #(PERIOD*1);
+
+    //load same index
+    dcif.imemaddr = 32'hffff0000;
+    dcif.imemREN = 1'b1;
+    dcif.halt = 1'b0;
+    ccif.iwait = 1'b0;
+    ccif.iload = 32'h0000ffff;
+    @(negedge CLK);
+    ccif.iload = 32'hffff0001;
+    @(posedge dcif.ihit);
+    @(posedge CLK);
+    dcif.imemREN = 1'b0;
+    #(PERIOD*1);
+
+    //read index 1
+    dcif.imemaddr = 32'b00000000000000000000000000_001_0_00;
+    //dcif.imemstore = 32'hbad1bad1;
+    dcif.imemREN = 1'b1;
+    dcif.halt = 1'b0;
+    ccif.iwait = 1'b0;
+    ccif.iload = 32'h00000000;
+    @(negedge CLK);
+    ccif.iload = 32'hffffffff;
+    @(posedge dcif.ihit);
+    @(posedge CLK);
+    dcif.imemREN = 1'b0;
+    #(PERIOD*1);
+
+    dcif.halt = 1'b1;
+    @(posedge CLK);
+    @(posedge CLK);
+    dcif.halt = 1'b0;
+    #(PERIOD*16);
+    */
 
     @(negedge CLK);
     $finish;

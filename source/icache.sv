@@ -42,9 +42,8 @@ logic block_sel;
 logic data_sel;
 logic cache_write;
 word_t nxt_data;
-
-logic mem_ready, ihit, miss;
-
+logic [ITAG_W-1:0] nxt_tag;
+logic mem_ready, ihit, valid, nxt_valid;
 state cur_state, nxt_state;
 
 
@@ -58,9 +57,20 @@ always_ff @(posedge CLK, negedge nRST) begin
 end
 
 always_comb begin
+	valid = 0;
+	ihit = 0;
+	if (sets[iaddr.idx].blocks[0].tag) begin
+		ihit = 1;
+	end
+	if (sets[iaddr.idx].blocks[0].valid) begin
+		valid = 1;
+	end
+end
+
+always_comb begin
 	casez(cur_state)
 		IDLE: begin
-			if (dpif.iREN) begin
+			if (dcif.imemREN) begin
 				nxt_state = READ;
 			end
 			else begin
@@ -68,7 +78,7 @@ always_comb begin
 			end
 		end
 		READ: begin
-			if (ihit) begin
+			if (ihit && valid) begin
 				nxt_state = IDLE;
 			end
 			else begin
@@ -93,12 +103,13 @@ always_comb begin
 
 	end
 	READ: begin
-		ihit = (iaddr.tag == sets[iaddr.idx].blocks[0].tag) && (sets[iaddr.idx].blocks[0].valid);
+		dcif.ihit = (iaddr.tag == sets[iaddr.idx].blocks[0].tag) && (sets[iaddr.idx].blocks[0].valid);
 	end
 	ALLOCATE: begin
-		ccif.iaddr = dcif.iaddr;
-		ccif.iREN = dcif.iREN;
+		ccif.iaddr = dcif.imemaddr;
+		ccif.iREN = dcif.imemREN;
 		mem_ready = !ccif.iwait;
+
 	end
 	endcase
 end
@@ -111,6 +122,18 @@ always_ff @(posedge CLK, negedge nRST) begin
 		sets = '{default: 0};//'
 	end else begin
 		sets[set_sel].blocks[block_sel].data[data_sel] = nxt_data;
+		sets[set_sel].blocks[block_sel].valid = nxt_valid;
+  	end
+end
+
+//
+// Tag Store
+//
+always_ff @(posedge CLK, negedge nRST) begin
+	if (!nRST) begin
+		sets = '{default: 0};//'
+	end else begin
+		sets[set_sel].blocks[block_sel].tag = nxt_tag;
   	end
 end
 
@@ -125,6 +148,18 @@ always_comb begin
 	nxt_data = sets[set_sel].blocks[block_sel].data[data_sel];
 	if (cache_write) begin
 		nxt_data = ccif.iload;
+	end
+end
+
+//
+// Next tag
+//
+always_comb begin
+	nxt_tag = sets[set_sel].blocks[block_sel].tag;
+	nxt_valid = sets[set_sel].blocks[block_sel].valid;
+	if(cache_write) begin
+		nxt_tag = iaddr.tag;
+		nxt_valid = 1;
 	end
 end
 
