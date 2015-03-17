@@ -42,6 +42,10 @@ module datapath (
   alu_if              aluif();
   request_unit_if     ruif();
   sign_extender_if    seif();
+  //fetch_decode_if     fdif();
+  //decode_execute_if   deif();
+  //execute_mem_if      emif();
+  //mem_writeback_if    mwif();
   pipeline_if         plif();
   hazard_unit_if      huif();
   //forwarding_unit_if  huif();

@@ -18,6 +18,20 @@ package cpu_types_pkg;
     PIPE_NOP = 2'b10,
     PIPE_FLUSH = 2'b11
   } pipe_state_t;
+
+  // MSB: dcif.halt
+  //      dcif.REN
+  //      dcif.WEN
+  //      dirty
+  // LSB: hit
+  typedef enum logic [4:0] {
+    COP_HALT = 5'b10000,
+    COP_READ = 5'b01001,
+    COP_WRITE = 5'b00101,
+    COP_ALLOC_RD = 5'b01000,
+    COP_ALLOC_WB = 5'b00100,
+    COP_IDLE = 5'b00000
+  } cacheop_t;
   
   // word width and size
   parameter WORD_W    = 32;

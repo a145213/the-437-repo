@@ -21,6 +21,18 @@ module dcache_tb;
   parameter PERIOD = 10;
 
   logic CLK = 0, nRST;
+  int tb_ram_loc = 0;
+  int tb_ram_size = 32;
+  int tb_ram[32] = {
+    32'h0F0F0F0F, 32'hA0A0A0A0, 32'h08008008, 32'h0000FFFF,
+    32'hF0F0F0F0, 32'h0A0A0A0A, 32'h80880880, 32'hFFFF0000,
+    32'hDD00DD00, 32'hDEADBEEF, 32'hFEEDFEED, 32'h00BBBB00,
+    32'h00DD00DD, 32'hCAB1CAB1, 32'hBEEFDEAD, 32'hBB0000BB,
+    32'h00000000, 32'h11111111, 32'h22222222, 32'h33333333,
+    32'h44444444, 32'h55555555, 32'h66666666, 32'h77777777,
+    32'h88888888, 32'h99999999, 32'hAAAAAAAA, 32'hBBBBBBBB,
+    32'hCCCCCCCC, 32'hDDDDDDDD, 32'hEEEEEEEE, 32'hFFFFFFFF
+  };
   
   // ENUM for test stages
   typedef enum {
@@ -66,10 +78,17 @@ module dcache_tb;
     nRST = 0;
     ccif.dwait = 1'b1;
     ccif.dload = 32'hBAD1BAD1;
+    ccif.ccwait = 1'b0;
+    ccif.ccinv = 1'b0;
+    ccif.ccsnoopaddr = 32'h00000000;
+    dcif.halt = 1'b0;
     dcif.dmemREN = 1'b0;
     dcif.dmemWEN = 1'b0;
+    dcif.datomic = 1'b0;
+    dcif.dmemstore = 32'h00000000;
     dcif.dmemaddr = 32'h00000000;
     
+
     //
     // Test ansynchronous reset
     //
@@ -84,35 +103,26 @@ module dcache_tb;
     @(negedge CLK);
     nRST = 1;
     tb_stage = STAGE_TEST_INVALID;
-    dcif.dmemREN = 1'b1;
-    dcif.dmemWEN = 1'b0;
-    dcif.dmemaddr = 32'hFFFFFFF0;
-    ccif.dwait = 1'b1;
+    readCache(32'h88888888);
 
     // Fill invalid block
-    waitCycles(5);
-    ccif.dwait = 1'b0;
-    ccif.dload = 32'h5A5A5A5A;
-    @(posedge CLK);
-    #1;
-    ccif.dwait = 1'b1;
-    ccif.dload = 32'hBAD1BAD1;
+    fillBlocks(2);
+    @(negedge dcif.dhit);
+    assert(dcif.dmemload == tb_ram[0])
+        $display("SUCCESSFUL read -> allocate");
+    else
+        $error("FAILED read -> allocate");
 
-    waitCycles(5);
-    ccif.dwait = 1'b0;
-    ccif.dload = 32'h11111111;
-    @(posedge CLK);
-    #1;
-    ccif.dwait = 1'b1;
-    ccif.dload = 32'hBAD1BAD1;
 
     @(negedge CLK);
     tb_stage = STAGE_TEST_DHIT;
-    dcif.dmemREN = 1'b1;
-    dcif.dmemWEN = 1'b0;
-    dcif.dmemaddr = 32'hFFFFFFF0;
-    ccif.dwait = 1'b1;
-    waitCycles(5);
+    readCache(32'h8888888C); 
+    @(posedge dcif.dhit);
+    @(negedge dcif.dhit);
+    assert(dcif.dmemload == tb_ram[1])
+        $display("SUCCESSFUL read -> hit");
+    else
+        $error("FAILED read -> hit");
 
 
     //
@@ -120,45 +130,32 @@ module dcache_tb;
     //
     @(negedge CLK);
     tb_stage = STAGE_FILL_BLOCK;
-    dcif.dmemREN = 1'b1;
-    dcif.dmemWEN = 1'b0;
-    dcif.dmemaddr = 32'hEFFFFFF0;
-    ccif.dwait = 1'b1;
+    readCache(32'hA888888C);
+    // Fill invalid block
+    fillBlocks(2);
+    @(negedge dcif.dhit);
+    assert(dcif.dmemload == tb_ram[3])
+        $display("SUCCESSFUL read -> allocate");
+    else
+        $error("FAILED read -> hit");
 
-    waitCycles(5);
-    ccif.dwait = 1'b0;
-    ccif.dload = 32'hFEEDFEED;
-    @(posedge CLK);
-    #1;
-    ccif.dwait = 1'b1;
-    ccif.dload = 32'hBAD1BAD1;
-
-    waitCycles(5);
-    ccif.dwait = 1'b0;
-    ccif.dload = 32'h5A5A5A5A;
-    @(posedge CLK);
-    #1;
-    ccif.dwait = 1'b1;
-    ccif.dload = 32'hBAD1BAD1;
 
     @(negedge CLK);
     tb_stage = STAGE_TEST_DHIT;
-    dcif.dmemREN = 1'b1;
-    dcif.dmemWEN = 1'b0;
-    dcif.dmemaddr = 32'hEFFFFFF0;
-    ccif.dwait = 1'b1;
-    waitCycles(5);
+    readCache(32'hA8888888);
+    @(negedge dcif.dhit);
+    assert(dcif.dmemload == tb_ram[2])
+        $display("SUCCESSFUL read -> hit");
+    else
+        $error("FAILED read -> hit");
 
     //
     // Test Write Hit
     //
     @(negedge CLK);
     tb_stage = STAGE_TEST_WR_DHIT;
-    dcif.dmemREN = 1'b0;
-    dcif.dmemWEN = 1'b1;
-    dcif.dmemaddr = 32'hFFFFFFF0;
-    dcif.dmemstore = 32'hDEADBEEF;
-    ccif.dwait = 1'b1;
+    writeCache(32'h88888888, 32'hDEADBEEF);
+    @(negedge dcif.dhit);
 
     //
     // Test Write Hit on other block
@@ -166,62 +163,26 @@ module dcache_tb;
     @(negedge CLK);
     //@(negedge CLK);
     tb_stage = STAGE_TEST_WR_DHIT;
-    dcif.dmemREN = 1'b0;
-    dcif.dmemWEN = 1'b1;
-    dcif.dmemaddr = 32'hEFFFFFF4;
-    dcif.dmemstore = 32'hBEEFDEAD;
-    ccif.dwait = 1'b1;
-    @(negedge CLK);
+    writeCache(32'hA888888C, 32'hBEEFDEAD);
+    @(negedge dcif.dhit);
 
     //
     // Test Write Miss + Write back
     //
-    @(posedge CLK);
+    @(negedge CLK);
     tb_stage = STAGE_TEST_WR_DMISS;
-    dcif.dmemREN = 1'b0;
-    dcif.dmemWEN = 1'b1;
-    dcif.dmemaddr = 32'hEEFFFFF4;
-    dcif.dmemstore = 32'hBEEFDEAD;
-    ccif.dwait = 1'b1;
-
-    waitCycles(5);
-    ccif.dwait = 1'b0;
-    @(posedge CLK);
-    #1;
-    ccif.dwait = 1'b1;
-    ccif.dload = 32'hBAD1BAD1;
-
-    waitCycles(5);
-    ccif.dwait = 1'b0;
-    @(posedge CLK);
-    #1;
-    ccif.dwait = 1'b1;
-    ccif.dload = 32'hBAD1BAD1;
-
-    // Allocate after write back
-    waitCycles(5);
-    ccif.dwait = 1'b0;
-    ccif.dload = 32'hCAB1CAB1;
-    @(posedge CLK);
-    #1;
-    ccif.dwait = 1'b1;
-    ccif.dload = 32'hBAD1BAD1;
-
-    waitCycles(5);
-    ccif.dwait = 1'b0;
-    ccif.dload = 32'hABCD1234;
-    @(posedge CLK);
-    #1;
-    ccif.dwait = 1'b1;
-    ccif.dload = 32'hBAD1BAD1;
+    writeCache(32'hEE888888, 32'h5A5AFFBB);
+    writeBlocks(2);
+    @(negedge dcif.dhit);
 
     @(negedge CLK);
     tb_stage = STAGE_TEST_DHIT;
-    dcif.dmemREN = 1'b1;
-    dcif.dmemWEN = 1'b0;
-    dcif.dmemaddr = 32'hEFFFFFF0;
-    ccif.dwait = 1'b1;
-    waitCycles(5);
+    readCache(32'hEE888888); 
+    @(negedge dcif.dhit);
+    assert(dcif.dmemload == 32'h5A5AFFBB)
+        $display("SUCCESSFUL read -> hit");
+    else
+        $error("FAILED read -> hit");
 
     //
     // Test Write Hit on invalid block
@@ -241,12 +202,7 @@ module dcache_tb;
     dcif.dmemWEN = 1'b0;
     dcif.halt = 1'b1;
 
-    ccif.dwait = 1'b1;
-    @(posedge CLK);
-    ccif.dwait = 1'b0;
-    @(posedge CLK);
-    ccif.dwait = 1'b0;
-    waitCycles(32);
+    writeBlocks(32);
     
     @(negedge CLK);
     tb_stage = STAGE_DONE;
@@ -256,8 +212,17 @@ module dcache_tb;
     $finish;
   end
   
-  task verifySimultaneousRead(input word_t d1, input word_t d2, input logic [4:0] addr1, input logic [4:0] addr2);
-    
+  task readCache(input word_t addr);
+    dcif.dmemREN = 1'b1;
+    dcif.dmemWEN = 1'b0;
+    dcif.dmemaddr = addr;
+  endtask
+
+  task writeCache(input word_t addr, input word_t data);
+    dcif.dmemREN = 1'b0;
+    dcif.dmemWEN = 1'b1;
+    dcif.dmemaddr = addr;
+    dcif.dmemstore = data;
   endtask
 
   task waitCycles(int unsigned x);
@@ -265,7 +230,58 @@ module dcache_tb;
       @(negedge CLK);
   endtask
 
+  task fillBlocks(input int num_blocks);
+    for(int i = 0; i < num_blocks; i++)
+        ramRead(5, (tb_ram_loc++)%tb_ram_size);
+  endtask
+
+  task ramRead(input int latency, input int idx);
+    waitCycles(latency);
+    ccif.dwait = 1'b0;
+    ccif.dload = tb_ram[idx];
+    @(posedge CLK);
+    #1;
+    ccif.dwait = 1'b1;
+    ccif.dload = 32'hBAD1BAD1;
+  endtask
+
+  task writeBlocks(input int num_blocks);
+    for(int i = 0; i < num_blocks; i++)
+        ramWrite(5);
+  endtask
+
+  task ramWrite(input int latency);
+    waitCycles(latency);
+    ccif.dwait = 1'b0;
+    @(posedge CLK);
+    #1;
+    ccif.dwait = 1'b1;
+    ccif.dload = 32'hBAD1BAD1;
+  endtask
+
 endmodule
 
 program test;
 endprogram
+
+
+/*
+
+    // Allocate after write back
+    waitCycles(5);
+    ccif.dwait = 1'b0;
+    ccif.dload = 32'hCAB1CAB1;
+    @(posedge CLK);
+    #1;
+    ccif.dwait = 1'b1;
+    ccif.dload = 32'hBAD1BAD1;
+
+    waitCycles(5);
+    ccif.dwait = 1'b0;
+    ccif.dload = 32'hABCD1234;
+    @(posedge CLK);
+    #1;
+    ccif.dwait = 1'b1;
+    ccif.dload = 32'hBAD1BAD1;
+
+*/

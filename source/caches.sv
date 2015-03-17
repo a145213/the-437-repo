@@ -19,7 +19,7 @@ module caches (
   cache_control_if.caches ccif
 );
   // import types
-  import cpu_types_pkg::word_t;
+  import cpu_types_pkg::*;
 
   parameter CPUID = 0;
 
@@ -27,9 +27,13 @@ module caches (
   //word_t daddr;
 
   // icache
-  //icache  ICACHE(dcif, ccif);
+  icache #(.SETS(16), .BLKS_PER_SET(1), .WORDS_PER_BLK(1)) ICACHE(CLK, nRST, dcif, ccif);
   // dcache
-  //dcache  DCACHE(dcif, ccif);
+  dcache #(.SETS(8), .BLKS_PER_SET(2), .WORDS_PER_BLK(2)) DCACHE(CLK, nRST, dcif, ccif);
+
+  // Unused signals
+  assign ccif.ccwrite = 1'b0;
+  assign ccif.cctrans = 1'b0;
 
   // single cycle instr saver (for memory ops)
   /*
@@ -49,7 +53,10 @@ module caches (
     end
   end
   */
+
+
   // dcache invalidate before halt
+  /*
   assign dcif.flushed = dcif.halt;
 
   assign dcif.ihit = (dcif.imemREN) ? ~ccif.iwait : 0;
@@ -63,5 +70,6 @@ module caches (
   assign ccif.dstore = dcif.dmemstore;
   assign ccif.iaddr = dcif.imemaddr;
   assign ccif.daddr = dcif.dmemaddr;
-  
+  */
+
 endmodule
