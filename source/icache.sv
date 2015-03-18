@@ -105,9 +105,6 @@ always_ff @(posedge CLK, negedge nRST) begin
 	end
 end
 
-//
-// Next State Logic
-//
 always_comb begin
 	casez(cur_state)
 		IDLE: begin
@@ -173,7 +170,6 @@ always_comb begin
 			end else begin
 				nxt_ihit = int_ihit;
 			end
-
 			// Select the appropriate block
 			if (iaddr.tag == sets[iaddr.idx].blocks[0].tag) begin
 				nxt_block_sel = 1'b0;

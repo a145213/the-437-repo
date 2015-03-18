@@ -86,7 +86,6 @@ module icache_tb;
     // Test ansynchronous reset
     //
     @(negedge CLK);
-    tb_stage = STAGE_POR;
     nRST = 0;
 
     //
@@ -105,6 +104,9 @@ module icache_tb;
     else
         $error("FAILED read -> allocate");
 
+    if (nRST != 1)
+      $display("nRST FAILED");
+    else $display("nRST PASSED");
 
     @(negedge CLK);
     tb_stage = STAGE_TEST_DHIT;
@@ -116,7 +118,6 @@ module icache_tb;
         $display("SUCCESSFUL read -> allocate");
     else
         $error("FAILED read -> allocate");
-
 
     //
     // Fill the rest of the set
