@@ -35,7 +35,8 @@ typedef enum logic [2:0] {
 	WRITE = 3'b010,
 	ALLOC_RD = 3'b011,
 	ALLOC_WB = 3'b100,
-	HALT = 3'b101
+	HALT = 3'b101,
+	HALT_CNTR = 3'b110
 } state;
   
 dcachef_t daddr;
@@ -44,7 +45,7 @@ logic [WORDS_PER_BLK:0] off_write;
 logic [WORDS_PER_BLK:0] off_read;
 logic [WORDS_PER_BLK:0] nxt_off_write;
 logic [WORDS_PER_BLK:0] nxt_off_read;
-logic [IIDX_W-1:0] set_sel;
+logic [DIDX_W-1:0] set_sel;
 logic block_sel;
 logic data_sel;
 logic nxt_data_sel;
@@ -66,8 +67,8 @@ logic word_cntr;
 logic [2:0] nxt_set_cntr;
 logic nxt_block_cntr;
 logic nxt_word_cntr;
-logic [4:0] halt_cntr;
-logic [4:0] nxt_halt_cntr;
+logic [5:0] halt_cntr;
+logic [5:0] nxt_halt_cntr;
 logic nxt_dhit;
 logic int_dhit;
 // Flushing
@@ -91,6 +92,10 @@ assign set_cntr = halt_cntr[4:2];
 assign block_cntr = halt_cntr[1];
 assign word_cntr = halt_cntr[0];
 
+// Hit Counter
+word_t hit_cntr;
+word_t nxt_hit_cntr;
+
 always_ff @(posedge CLK, negedge nRST) begin
 	if (!nRST) begin
 		cur_state <= IDLE;
@@ -101,6 +106,7 @@ always_ff @(posedge CLK, negedge nRST) begin
 		halt_cntr <= 0;
 		flushed <= 0;
 		dhit <= 0;
+		hit_cntr <= 0;
 	end
 	else begin
 		cur_state <= nxt_state;
@@ -116,6 +122,7 @@ always_ff @(posedge CLK, negedge nRST) begin
 		block_sel <= nxt_block_sel;
 		sets[set_sel].lru <= nxt_lru;
 		dhit <= nxt_dhit;
+		hit_cntr <= nxt_hit_cntr;
 	end
 end
 
@@ -141,14 +148,14 @@ always_comb begin
 				5'b00101: begin
 					nxt_state = WRITE;
 				end
-				5'b00100: begin
-					nxt_state = WRITE;
-				end
 				5'b01010: begin
 					nxt_state = ALLOC_WB;
 				end 
 				5'b00110: begin
 					nxt_state = ALLOC_WB;
+				end
+				5'b00100: begin
+					nxt_state = ALLOC_RD;
 				end
 				5'b01000: begin
 					nxt_state = ALLOC_RD;
@@ -166,20 +173,28 @@ always_comb begin
 		end
 		ALLOC_RD: begin
 			if (mem_ready && off_read == WORDS_PER_BLK-1) begin
-				nxt_state = READ;
+				nxt_state = (dp_write)?(WRITE):(READ);
 			end else begin
 				nxt_state = ALLOC_RD;
 			end
 		end
 		ALLOC_WB: begin
 			if (mem_ready && off_write == WORDS_PER_BLK-1) begin
-				nxt_state = (dp_write)?(WRITE):(ALLOC_RD);
+				//nxt_state = (dp_write)?(WRITE):(ALLOC_RD);
+				nxt_state = ALLOC_RD;
 			end else begin
 				nxt_state = ALLOC_WB;
 			end
 		end
 		HALT: begin
-			nxt_state = HALT;
+			if (halt_cntr != 32) begin
+				nxt_state = HALT;
+			end else begin
+				nxt_state = HALT_CNTR;
+			end
+		end
+		HALT_CNTR: begin
+			nxt_state = HALT_CNTR;
 		end
 	endcase
 end
@@ -207,7 +222,11 @@ always_comb begin
 	nxt_flushed = 1'b0;
 	ccif.dREN = 1'b0;
 	ccif.dWEN = 1'b0;
-	
+	nxt_hit_cntr = hit_cntr;
+	ccif.daddr = {daddr.tag, daddr.idx, off_read[0], 2'b00};
+	dcif.dmemload = sets[set_sel].blocks[block_sel].data[data_sel];
+	ccif.dstore = sets[set_sel].blocks[block_sel].data[data_sel];
+
 	casez(cur_state)
 		IDLE: begin
 			nxt_off_read = 0;
@@ -215,11 +234,13 @@ always_comb begin
 			nxt_halt_cntr = 0;
 			
 			
-			if (!dcif.halt && dp_write && !dirty) begin
-				nxt_dhit = 1'b1;
-			end else begin
-				nxt_dhit = int_dhit;
-			end
+			//if (!dcif.halt && dp_write && !dirty) begin
+			//	nxt_dhit = 1'b1;
+			//end else begin
+			//	nxt_dhit = int_dhit;
+			//end
+			nxt_dhit = ((dp_write || dp_read) && !dcif.halt)?(int_dhit):(1'b0);
+			nxt_hit_cntr = (nxt_dhit && (dp_write || dp_read) && !dcif.halt)?(hit_cntr + 1):(hit_cntr);
 
 			// Select the appropriate block
 			if (daddr.tag == sets[daddr.idx].blocks[0].tag) begin
@@ -238,7 +259,7 @@ always_comb begin
 		READ: begin
 			// If we are in this state, then we know we had a dhit
 			dcif.dmemload = sets[set_sel].blocks[block_sel].data[data_sel];
-			nxt_tag = daddr.tag;
+			//nxt_tag = daddr.tag;
 
 			// LRU Logic
 			if (daddr.tag == sets[daddr.idx].blocks[0].tag) begin
@@ -288,13 +309,16 @@ always_comb begin
 			
 		end
 		ALLOC_WB: begin
-			ccif.daddr = {sets[set_sel].blocks[block_sel].tag,set_sel,off_write,2'b00};
+			//$display("%h", sets[set_sel].blocks[block_sel].tag);
+			//$display("%b-%b-%b-%b", sets[set_sel].blocks[block_sel].tag, set_sel, off_write[0], 2'b00);
+			//$display("%h", {sets[set_sel].blocks[block_sel].tag, set_sel, off_write[0], 2'b00});
+			ccif.daddr = {sets[set_sel].blocks[block_sel].tag, set_sel, off_write[0], 2'b00};
 			ccif.dREN = 1'b0;
 			ccif.dWEN = 1'b1;
 			ccif.dstore = sets[set_sel].blocks[block_sel].data[data_sel];
 			if (mem_ready) begin
 				nxt_off_write = off_write + 1;
-				nxt_data_sel = data_sel + off_write + 1;
+				nxt_data_sel = nxt_off_write[0];
 			end else begin
 				nxt_off_write = off_write;
 				nxt_data_sel = data_sel;
@@ -302,7 +326,7 @@ always_comb begin
 
 			// Prepare dhit for datapath
 			if (dp_write && mem_ready && off_write == WORDS_PER_BLK-1) begin
-				nxt_dhit = 1'b1;
+				//nxt_dhit = 1'b1;
 				nxt_data_sel = daddr.blkoff;
 			end
 		end
@@ -310,15 +334,15 @@ always_comb begin
 			ccif.daddr = {sets[set_cntr].blocks[block_cntr].tag,set_cntr,word_cntr,2'b00};
 			ccif.dstore = sets[set_cntr].blocks[block_cntr].data[word_cntr];
 			nxt_valid = 1'b0;
-			if ((!sets[set_cntr].blocks[block_cntr].dirty || mem_ready) && halt_cntr != 31) begin
+			if ((!sets[set_cntr].blocks[block_cntr].dirty || mem_ready) && halt_cntr != 32) begin
 				nxt_halt_cntr = halt_cntr + 1;
 			end else begin
 				nxt_halt_cntr = halt_cntr;
 			end
 
-			if (halt_cntr == 31) begin
-				nxt_flushed = 1'b1;
-			end
+			//if (halt_cntr == 31) begin
+			//	nxt_flushed = 1'b1;
+			//end
 
 			if (sets[set_cntr].blocks[block_cntr].dirty) begin
 				ccif.dREN = 1'b0;
@@ -326,6 +350,18 @@ always_comb begin
 			end else begin
 				ccif.dREN = 1'b0;
 				ccif.dWEN = 1'b0;
+			end
+		end
+		HALT_CNTR: begin
+			ccif.daddr = 32'h00003100;
+			ccif.dstore = hit_cntr;
+			ccif.dREN = 1'b0;
+			ccif.dWEN = 1'b1;
+			if (mem_ready) begin
+				nxt_halt_cntr = halt_cntr + 1;
+			end
+			if (halt_cntr == 33) begin
+				nxt_flushed = 1'b1;
 			end
 		end
 	endcase

@@ -1,79 +1,82 @@
-`include "pipeline_if.vh"
+`include "execute_mem_if.vh"
 `include "cpu_types_pkg.vh"
 
 module pipeline_execute_memory
 (
   input logic CLK, nRST,
-  pipeline_if.em emif
+  execute_mem_if.em emif
 );
 
 import cpu_types_pkg::*;
 
 always_ff @ (posedge CLK, negedge nRST) begin
   if (!nRST) begin
-    emif.PCSrc_mem <= 0;
-    emif.MemToReg_mem <= 0;
-    emif.dREN_mem <= 0;
-    emif.dWEN_mem <= 0;
-    emif.RegWrite_mem <= 0;
-    emif.halt_mem <= 0;
-    emif.rdat1_mem <= 0;
-    emif.rdat2_mem <= 0;
-    emif.jaddr_mem <= 0;
-    emif.pc4_mem <= 0;
-    emif.port_o_mem <= 0;
-    emif.zero_mem <= 0;
-    emif.overflow_mem <= 0;
-    emif.lui_mem <= 0;
-    emif.regWSEL_mem <= 0;
-    emif.baddr_mem <= 0;
-    emif.check_zero_mem <= 0;
-    emif.check_overflow_mem <= 0;
-    emif.rs_mem <= 0;
-    emif.rt_mem <= 0;
+    emif.m_PCSrc <= 0;
+    emif.m_MemToReg <= 0;
+    emif.m_dREN <= 0;
+    emif.m_dWEN <= 0;
+    emif.m_RegWrite <= 0;
+    emif.m_halt <= 0;
+    emif.m_rdat1 <= 0;
+    emif.m_rdat2 <= 0;
+    emif.m_jaddr <= 0;
+    emif.m_pc4 <= 0;
+    emif.m_port_o <= 0;
+    emif.m_zero <= 0;
+    emif.m_overflow <= 0;
+    emif.m_lui <= 0;
+    emif.m_regWSEL <= 0;
+    emif.m_baddr <= 0;
+    emif.m_check_zero <= 0;
+    emif.m_check_overflow <= 0;
+    emif.m_rs <= 0;
+    emif.m_rt <= 0;
+    emif.m_op <= RTYPE;
   end
   else if (emif.em_state == PIPE_ENABLE) begin
-    emif.PCSrc_mem <= emif.PCSrc_ex;
-    emif.MemToReg_mem <= emif.MemToReg_ex;
-    emif.dREN_mem <= emif.dREN_ex;
-    emif.dWEN_mem <= emif.dWEN_ex;
-    emif.RegWrite_mem <= emif.RegWrite_ex;
-    emif.halt_mem <=  emif.halt_ex;
-    emif.rdat1_mem <= emif.rdat1_ex;
-    emif.rdat2_mem <= emif.memstore_ex;
-    emif.jaddr_mem <= emif.jaddr_ex;
-    emif.pc4_mem <= emif.pc4_ex;
-    emif.port_o_mem <= emif.port_o_ex;
-    emif.zero_mem <= emif.zero_ex;
-    emif.overflow_mem <= emif.overflow_ex;
-    emif.lui_mem <= emif.lui_ex;
-    emif.regWSEL_mem <= emif.regWSEL_ex;
-    emif.baddr_mem <= emif.baddr_ex;
-    emif.check_zero_mem <= emif.check_zero_ex;
-    emif.check_overflow_mem <= emif.check_overflow_ex;
-    emif.rs_mem <= emif.rs_ex;
-    emif.rt_mem <= emif.rt_ex;
+    emif.m_PCSrc <= emif.e_PCSrc;
+    emif.m_MemToReg <= emif.e_MemToReg;
+    emif.m_dREN <= emif.e_dREN;
+    emif.m_dWEN <= emif.e_dWEN;
+    emif.m_RegWrite <= emif.e_RegWrite;
+    emif.m_halt <=  emif.e_halt;
+    emif.m_rdat1 <= emif.e_rdat1;
+    emif.m_rdat2 <= emif.e_memstore;
+    emif.m_jaddr <= emif.e_jaddr;
+    emif.m_pc4 <= emif.e_pc4;
+    emif.m_port_o <= emif.e_port_o;
+    emif.m_zero <= emif.e_zero;
+    emif.m_overflow <= emif.e_overflow;
+    emif.m_lui <= emif.e_lui;
+    emif.m_regWSEL <= emif.e_regWSEL;
+    emif.m_baddr <= emif.e_baddr;
+    emif.m_check_zero <= emif.e_check_zero;
+    emif.m_check_overflow <= emif.e_check_overflow;
+    emif.m_rs <= emif.e_rs;
+    emif.m_rt <= emif.e_rt;
+    emif.m_op <= emif.e_op;
   end else if (emif.em_state == PIPE_NOP) begin
-    emif.PCSrc_mem <= 0;
-    emif.MemToReg_mem <= 0;
-    emif.dREN_mem <= 0;
-    emif.dWEN_mem <= 0;
-    emif.RegWrite_mem <= 0;
-    emif.halt_mem <= 0;
-    emif.rdat1_mem <= 0;
-    emif.rdat2_mem <= 0;
-    emif.jaddr_mem <= 0;
-    emif.pc4_mem <= 0;
-    emif.port_o_mem <= 0;
-    emif.zero_mem <= 0;
-    emif.overflow_mem <= 0;
-    emif.lui_mem <= 0;
-    emif.regWSEL_mem <= 0;
-    emif.baddr_mem <= 0;
-    emif.check_zero_mem <= 0;
-    emif.check_overflow_mem <= 0;
-    emif.rs_mem <= 0;
-    emif.rt_mem <= 0;
+    emif.m_PCSrc <= 0;
+    emif.m_MemToReg <= 0;
+    emif.m_dREN <= 0;
+    emif.m_dWEN <= 0;
+    emif.m_RegWrite <= 0;
+    emif.m_halt <= 0;
+    emif.m_rdat1 <= 0;
+    emif.m_rdat2 <= 0;
+    emif.m_jaddr <= 0;
+    emif.m_pc4 <= 0;
+    emif.m_port_o <= 0;
+    emif.m_zero <= 0;
+    emif.m_overflow <= 0;
+    emif.m_lui <= 0;
+    emif.m_regWSEL <= 0;
+    emif.m_baddr <= 0;
+    emif.m_check_zero <= 0;
+    emif.m_check_overflow <= 0;
+    emif.m_rs <= 0;
+    emif.m_rt <= 0;
+    emif.m_op <= RTYPE;
   end
 end
 

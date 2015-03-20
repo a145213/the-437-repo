@@ -32,8 +32,8 @@ module caches (
   dcache #(.SETS(8), .BLKS_PER_SET(2), .WORDS_PER_BLK(2)) DCACHE(CLK, nRST, dcif, ccif);
 
   // Unused signals
-  assign ccif.ccwrite = 1'b0;
-  assign ccif.cctrans = 1'b0;
+  //assign ccif.ccwrite = 1'b0;
+  //assign ccif.cctrans = 1'b0;
 
   // single cycle instr saver (for memory ops)
   /*

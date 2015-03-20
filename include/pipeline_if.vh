@@ -7,8 +7,6 @@ interface pipeline_if;
   import cpu_types_pkg::*;
   // PC Source outcomes
 
-  
-
   // Latch states
   pipe_state_t fd_state, de_state, em_state, mw_state;
 

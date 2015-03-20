@@ -158,6 +158,9 @@ always_comb begin
 	nxt_halt_cntr = 0;
 	nxt_ihit = 1'b0;
 	ccif.iREN = 1'b0;
+	ccif.iaddr = {iaddr.tag, iaddr.idx, 2'b00};
+	dcif.imemload = sets[set_sel].blocks[block_sel].data[data_sel];
+	nxt_block_sel = 1'b0;
 	
 	casez(cur_state)
 		IDLE: begin

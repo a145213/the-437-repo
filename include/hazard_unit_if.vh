@@ -4,46 +4,82 @@
 `include "cpu_types_pkg.vh"
 
 interface hazard_unit_if;
-    // import types
     import cpu_types_pkg::*;
 
-    // Inputs
-    //word_t instr_fetch, instr_decode;
-    regbits_t rs, rt;
-    regbits_t ex_wsel, mem_wsel;
-    logic [1:0] PCSrc;
+    // Inputs    
     logic alu_zero;
     logic check_zero;
     logic ihit, dhit;
     logic dWEN, dREN;
-    regbits_t rs_ex, rt_ex, rs_mem, rt_mem;
-    regbits_t wb_wsel;
+    logic w_halt;
+    logic [1:0] PCSrc;
+    regbits_t d_rs, e_rs, m_rs;
+    regbits_t d_rt, e_rt, m_rt;
+    regbits_t e_wsel, m_wsel, w_wsel;
+    opcode_t d_op, e_op, m_op, w_op;
 
     // Outputs
-    logic PC_WEN;
-    logic [1:0] PCSrc_check;
     pipe_state_t fd_state, de_state, em_state, mw_state;
-    logic [1:0] fsel_a, fsel_b;
-    logic [1:0] fsel_sw;
-    logic fsel_sw_ex;
+    logic PC_WEN;
     logic branching;
     logic jumping;
+    logic fsel_sw_ex;
+    logic [1:0] PCSrc_check;
+    logic [1:0] fsel_a, fsel_b;
+    logic [1:0] fsel_sw;
 
  
 // Hazard Unit ports
 modport hu (
-        input alu_zero, ihit, dhit, rs, rt, ex_wsel, mem_wsel, PCSrc, check_zero,
-        dWEN, dREN, rs_ex, rt_ex, rs_mem, rt_mem, wb_wsel, 
-        output fd_state, de_state, em_state, mw_state, PC_WEN, PCSrc_check,
-        fsel_a, fsel_b, fsel_sw, branching, jumping, fsel_sw_ex
+        input 
+                alu_zero,
+                check_zero,
+                ihit,
+                dhit,
+                dWEN,
+                dREN,
+                w_halt,
+                PCSrc,
+                d_rs, e_rs, m_rs,
+                d_rt, e_rt, m_rt,
+                e_wsel, m_wsel, w_wsel,
+                d_op, e_op, m_op, w_op,
+        output 
+                fd_state, de_state, em_state, mw_state, 
+                PC_WEN, 
+                PCSrc_check, 
+                fsel_a, 
+                fsel_b, 
+                fsel_sw, 
+                branching, 
+                jumping, 
+                fsel_sw_ex
 );
 
 // Hazard Unit TB
 modport tb (
-        output alu_zero, ihit, dhit, rs, rt, ex_wsel, mem_wsel, PCSrc, check_zero,
-        dWEN, dREN, rs_ex, rt_ex, rs_mem, rt_mem, wb_wsel,
-        input fd_state, de_state, em_state, mw_state, PC_WEN, PCSrc_check,
-        fsel_a, fsel_b, fsel_sw, branching, jumping, fsel_sw_ex
+        output 
+                alu_zero,
+                check_zero,
+                ihit,
+                dhit,
+                dWEN,
+                dREN,
+                PCSrc,
+                d_rs, e_rs, m_rs,
+                d_rt, e_rt, m_rt,
+                e_wsel, m_wsel, w_wsel,
+                d_op, e_op, m_op, w_op,
+        input 
+                fd_state, de_state, em_state, mw_state, 
+                PC_WEN, 
+                PCSrc_check, 
+                fsel_a, 
+                fsel_b, 
+                fsel_sw, 
+                branching, 
+                jumping, 
+                fsel_sw_ex
 );
 
 endinterface

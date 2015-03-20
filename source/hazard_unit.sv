@@ -39,24 +39,25 @@ module hazard_unit
   // 
   // PC Write Enable Logic
   //
-  assign huif.PC_WEN = 
-            (huif.ihit & !huif.dhit) ||
-            huif.jumping;
+  //assign huif.PC_WEN = 
+  //          (huif.ihit & !huif.dhit) ||
+  //          huif.jumping;
+  assign huif.PC_WEN = huif.ihit && !((huif.m_op == LW || huif.m_op == SW) && !huif.dhit);
 
   //
   // Hazard detections
   //
-  assign rs_hazard = (huif.rs != 0) && ((huif.ex_wsel == huif.rs) || (huif.mem_wsel == huif.rs));
-  assign rt_hazard = (huif.rt != 0) && ((huif.ex_wsel == huif.rt) || (huif.mem_wsel == huif.rt));
+  assign rs_hazard = (huif.d_rs != 0) && ((huif.e_wsel == huif.d_rs) || (huif.m_wsel == huif.d_rs));
+  assign rt_hazard = (huif.d_rt != 0) && ((huif.e_wsel == huif.d_rt) || (huif.m_wsel == huif.d_rt));
 
   //
   // Branch detections
   //
-  assign beq_hazard = huif.check_zero && !huif.alu_zero;
-  assign bne_hazard = !huif.check_zero && huif.alu_zero;
+  assign beq_hazard = huif.check_zero && !huif.alu_zero && huif.m_op == BEQ;
+  assign bne_hazard = huif.check_zero && huif.alu_zero && huif.m_op == BNE;
   assign branch_hazard = ((beq_hazard || bne_hazard) && (huif.PCSrc == 1));
-  assign beq = huif.check_zero && huif.alu_zero;
-  assign bne = !huif.check_zero && !huif.alu_zero;
+  assign beq = huif.check_zero && huif.alu_zero && huif.m_op == BEQ;
+  assign bne = huif.check_zero && !huif.alu_zero && huif.m_op == BNE;
   assign huif.branching = (huif.PCSrc == 1) && (beq || bne);
   always_comb begin
     if (branch_hazard) begin
@@ -76,131 +77,61 @@ module hazard_unit
   // Fetch-Decode Latch Logic
   //
   always_comb begin
-    /*
-    if (branching || jumping) begin
-      huif.fd_state = PIPE_NOP;
-    end else if (huif.dhit && huif.dREN) begin
-      huif.fd_state = PIPE_ENABLE;
-    end else if (rs_hazard || rt_hazard) begin
+    huif.fd_state = PIPE_ENABLE;
+    huif.de_state = PIPE_ENABLE;
+    huif.em_state = PIPE_ENABLE;
+    huif.mw_state = PIPE_ENABLE;
+
+    // Stall pipes until next instruction is ready
+    if (!huif.ihit) begin
       huif.fd_state = PIPE_STALL;
-    end else if (huif.ihit && !huif.dhit) begin
-      huif.fd_state = PIPE_ENABLE;
-    end else begin
-      huif.fd_state = PIPE_STALL;
-    end
-    */
-
-
-    if (huif.branching || huif.jumping) begin
-      huif.fd_state = PIPE_NOP;
-    end else if (huif.ihit) begin
-      huif.fd_state = PIPE_ENABLE;
-    end else if (huif.dhit && huif.dREN) begin
-      huif.fd_state = PIPE_NOP;
-    end else if (!huif.dhit && huif.dWEN) begin
-      huif.fd_state = PIPE_STALL;
-    end else begin
-      huif.fd_state = PIPE_ENABLE;
-    end
-  end
-
-  //
-  // Decode-Execute Latch Logic
-  //
-  always_comb begin
-    /*
-  	if (branching || jumping) begin
-      huif.de_state = PIPE_NOP;
-    end else if (huif.dhit && huif.dREN) begin
-      huif.de_state = PIPE_ENABLE;
-    end else if (rs_hazard || rt_hazard) begin
-      huif.de_state = PIPE_NOP;
-    end else if (huif.ihit && !huif.dhit) begin
-      huif.de_state = PIPE_ENABLE;
-    end else begin
-  		huif.de_state = PIPE_STALL;
-  	end
-    */
-
-    if (huif.branching || huif.jumping) begin
-      huif.de_state = PIPE_NOP;
-    end else if (huif.ihit) begin
-      huif.de_state = PIPE_ENABLE;
-    end else if (huif.dhit && huif.dREN) begin
-      huif.de_state = PIPE_ENABLE;
-    end else if (!huif.dhit && huif.dWEN) begin
       huif.de_state = PIPE_STALL;
-    end else begin
+      huif.em_state = PIPE_STALL;
+      huif.mw_state = PIPE_STALL;
+    end
+    
+    // Takes care of getting multiple dhits
+    // while waiting for an ihit
+    if ((huif.m_op == LW || huif.m_op == SW) && huif.dhit) begin
+      huif.fd_state = (huif.ihit)?(PIPE_ENABLE):(PIPE_NOP);
       huif.de_state = PIPE_ENABLE;
-    end
-  end
-
-  //
-  // Execute-Memory Latch Logic
-  //
-  always_comb begin
-    /*
-  	if (branching || jumping) begin
-      huif.em_state = PIPE_NOP;
-    end else if (huif.dhit && huif.dREN) begin
       huif.em_state = PIPE_ENABLE;
-    end else if (huif.ihit && !huif.dhit) begin
-  		huif.em_state = PIPE_ENABLE;
-  	end else if (!huif.ihit || huif.dhit) begin
-  		huif.em_state = PIPE_STALL;
-  	end else begin
+      huif.mw_state = PIPE_ENABLE;
+    end else if ((huif.m_op == LW || huif.m_op == SW) && !huif.dhit) begin
+      //huif.fd_state = (huif.ihit)?(PIPE_ENABLE):(PIPE_STALL);
+      huif.fd_state = PIPE_STALL;
+      huif.de_state = PIPE_STALL;
       huif.em_state = PIPE_STALL;
+      huif.mw_state = PIPE_STALL;
     end
-    */
-    if (huif.branching || huif.jumping) begin
+
+
+    // Takes care of branching and jumps
+    if ((huif.branching || huif.jumping) && huif.ihit) begin
+      huif.fd_state = PIPE_NOP;
+      huif.de_state = PIPE_NOP;
       huif.em_state = PIPE_NOP;
-    end else if (huif.ihit) begin
-      huif.em_state = PIPE_ENABLE;
-    end else if (huif.dhit && huif.dREN) begin
-      huif.em_state = PIPE_ENABLE;
-    end else if (!huif.dhit && huif.dWEN) begin
-      huif.em_state = PIPE_STALL;
-    end else begin
-      huif.em_state = PIPE_ENABLE;
-    end
-  end
-
-  //
-  // Memory-Write back Latch Logic
-  //
-  always_comb begin
-  /*
-    if (huif.ihit) begin
-      huif.mw_state = PIPE_ENABLE;
-    end else if (huif.dhit && huif.dREN) begin
-      huif.mw_state = PIPE_ENABLE;
-    end else if (!huif.dhit && huif.dWEN) begin
-      huif.mw_state = PIPE_STALL;
-  	end else begin
-  		huif.mw_state = PIPE_STALL;
-  	end
-    */
-    if (huif.ihit) begin
-      huif.mw_state = PIPE_ENABLE;
-    end else if (huif.dhit && huif.dREN) begin
-      huif.mw_state = PIPE_ENABLE;
-    end else if (!huif.dhit && huif.dWEN) begin
-      huif.mw_state = PIPE_STALL;
-    end else begin
       huif.mw_state = PIPE_ENABLE;
     end
-  end
 
+
+    if (huif.w_halt) begin
+      huif.fd_state = PIPE_NOP;
+      huif.de_state = PIPE_NOP;
+      huif.em_state = PIPE_NOP;
+      huif.mw_state = PIPE_NOP;
+    end
+  end
 
   //
   // Hazard detections
   //
-  assign haz_rs_ex = (huif.rs_mem != 0) && (huif.wb_wsel == huif.rs_mem);
-  assign haz_rt_ex = (huif.rt_mem != 0) && (huif.wb_wsel == huif.rt_mem);
-  assign haz_rs_mem = (huif.rs_ex != 0) && (huif.mem_wsel == huif.rs_ex);
-  assign haz_rt_mem = (huif.rt_ex != 0) && (huif.mem_wsel == huif.rt_ex);
-  assign haz_rs_wb = (huif.rs_ex != 0) && (huif.wb_wsel == huif.rs_ex);
-  assign haz_rt_wb = (huif.rt_ex != 0) && (huif.wb_wsel == huif.rt_ex);
+  assign haz_rs_ex = (huif.m_rs != 0) && (huif.w_wsel == huif.m_rs);
+  assign haz_rt_ex = (huif.m_rt != 0) && (huif.w_wsel == huif.m_rt);
+  assign haz_rs_mem = (huif.e_rs != 0) && (huif.m_wsel == huif.e_rs);
+  assign haz_rt_mem = (huif.e_rt != 0) && (huif.m_wsel == huif.e_rt);
+  assign haz_rs_wb = (huif.e_rs != 0) && (huif.w_wsel == huif.e_rs);
+  assign haz_rt_wb = (huif.e_rt != 0) && (huif.w_wsel == huif.e_rt);
 
   //
   // ALU Port A Mux Select Logic
@@ -241,7 +172,7 @@ module hazard_unit
     if (haz_rt_ex) begin
       huif.fsel_sw = 2'd1;
     end else if (haz_rt_wb) begin
-      huif.fsel_sw = 2'd2;
+      huif.fsel_sw = 2'd0;
     end else begin
       // No forwarding
       huif.fsel_sw = 2'd0;

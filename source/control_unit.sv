@@ -92,7 +92,7 @@ module control_unit
       cuif.ALUSrc = 0;
       cuif.ExtOp = 1;
       cuif.PCSrc = 1;
-      cuif.check_zero = 0;
+      cuif.check_zero = 1;
     end
     ADDI: begin
       cuif.alu_op = ALU_ADD;;

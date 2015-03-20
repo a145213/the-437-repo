@@ -30,9 +30,9 @@ assign ccif.ramWEN = ccif.dWEN;
 assign ccif.ramREN = ccif.dREN ? 1 : (ccif.iREN & ~ccif.dWEN);
 
 // Unused signals
-assign ccif.ccwait = 1'b0;
-assign ccif.ccinv = 1'b0;
-assign ccif.ccsnoopaddr = 32'h00000000;
+//assign ccif.ccwait = 1'b0;
+//assign ccif.ccinv = 1'b0;
+//assign ccif.ccsnoopaddr = 32'h00000000;
 
 always_comb begin
   if (ccif.dWEN || ccif.dREN) 

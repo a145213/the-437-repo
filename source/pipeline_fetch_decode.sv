@@ -1,25 +1,25 @@
-`include "pipeline_if.vh"
+`include "fetch_decode_if.vh"
 `include "cpu_types_pkg.vh"
 
 module pipeline_fetch_decode
 (
   input logic CLK, nRST,
-  pipeline_if.fd fdif
+  fetch_decode_if.fd fdif
 );
 
 import cpu_types_pkg::*;
 
 always_ff @ (posedge CLK, negedge nRST) begin
   if (!nRST) begin
-    fdif.instr_dec <= 0;
-    fdif.pc4_dec <= 0;
+    fdif.d_instr <= 0;
+    fdif.d_pc4 <= 0;
   end
   else if (fdif.fd_state == PIPE_ENABLE) begin
-    fdif.instr_dec <= fdif.instr_fet;
-    fdif.pc4_dec <= fdif.pc4_fet;
+    fdif.d_instr <= fdif.f_instr;
+    fdif.d_pc4 <= fdif.f_pc4;
   end else if (fdif.fd_state == PIPE_NOP) begin
-    fdif.instr_dec <= 0;
-    fdif.pc4_dec <= 0;
+    fdif.d_instr <= 0;
+    fdif.d_pc4 <= 0;
   end
 end
 
