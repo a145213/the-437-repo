@@ -10,8 +10,8 @@ module icache #(
 ) 
 (
   input CLK, nRST,
-  datapath_cache_if.cache dcif,
-  cache_control_if.caches ccif
+  datapath_cache_if.icache dcif,
+  cache_control_if.icache ccif
 );
 
   // import types
@@ -68,7 +68,7 @@ logic int_ihit;
 
 // Cache operation variables
 cacheop_t cop;
-assign cop = cacheop_t'({dcif.halt, dcif.imemREN, 1'b0, 1'b0, int_ihit});//'
+assign cop = cacheop_t'({1'b0, dcif.imemREN, 1'b0, 1'b0, int_ihit});//'
 assign dp_read = (dcif.imemREN);
 assign dp_write = 1'b0;
 
@@ -168,11 +168,14 @@ always_comb begin
 			nxt_off_write = 0;
 			nxt_halt_cntr = 0;
 			
-			if (!dcif.halt && dp_write) begin
-				nxt_ihit = 1'b1;
-			end else begin
-				nxt_ihit = int_ihit;
-			end
+			//if (!dcif.halt && dp_write) begin
+			//	nxt_ihit = 1'b1;
+			//end else begin
+			//	nxt_ihit = int_ihit;
+			//end
+			nxt_ihit = (dp_read)?(int_ihit):(1'b0);
+			//nxt_hit_cntr = (nxt_ihit && (dp_write || dp_read) && !dcif.halt)?(hit_cntr + 1):(hit_cntr);
+
 			// Select the appropriate block
 			if (iaddr.tag == sets[iaddr.idx].blocks[0].tag) begin
 				nxt_block_sel = 1'b0;

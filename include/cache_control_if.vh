@@ -25,6 +25,9 @@ interface cache_control_if;
   logic   [CPUS-1:0]       iwait, dwait, iREN, dREN, dWEN;
   word_t  [CPUS-1:0]       iload, dload, dstore;
   word_t  [CPUS-1:0]       iaddr, daddr;
+  //logic        iwait, dwait, iREN, dREN, dWEN;
+  //word_t       iload, dload, dstore;
+  //sword_t       iaddr, daddr;
 
   // coherence
   // CPUS = number of cpus parameter passed from system -> cc
@@ -36,6 +39,9 @@ interface cache_control_if;
   logic   [CPUS-1:0]      ccwait, ccinv;
   logic   [CPUS-1:0]      ccwrite, cctrans;
   word_t  [CPUS-1:0]      ccsnoopaddr;
+  //logic       ccwait, ccinv;
+  //logic       ccwrite, cctrans;
+  //word_t      ccsnoopaddr;
 
   // ram side
   logic                   ramWEN, ramREN;
@@ -119,6 +125,52 @@ interface cache_control_if;
     output  .ccwrite(ccwrite[CPUID]),
     output  .cctrans(cctrans[CPUID])   
 );
+  
+
+
+  /*
+  modport caches (
+    input   .iwait(iwait), 
+    input   .iload(iload),
+    input   .dwait(dwait), 
+    input   .dload(dload),
+    input   .ccwait(ccwait),
+    input   .ccinv(ccinv),
+    input   .ccsnoopaddr(ccsnoopaddr),
+
+    output  .iREN(iREN),
+    output  .iaddr(iaddr),
+    output  .dREN(dREN),
+    output  .dWEN(dWEN),
+    output  .daddr(daddr),
+    output  .dstore(dstore),
+    output  .ccwrite(ccwrite),
+    output  .cctrans(cctrans)   
+);
+
+  modport icache (
+    input   .iwait(iwait), 
+    input   .iload(iload),
+
+    output  .iREN(iREN),
+    output  .iaddr(iaddr)  
+);
+
+  modport dcache (
+    input   .dwait(dwait), 
+    input   .dload(dload),
+    input   .ccwait(ccwait),
+    input   .ccinv(ccinv),
+    input   .ccsnoopaddr(ccsnoopaddr),
+
+    output  .dREN(dREN),
+    output  .dWEN(dWEN),
+    output  .daddr(daddr),
+    output  .dstore(dstore),
+    output  .ccwrite(ccwrite),
+    output  .cctrans(cctrans)   
+);
+  */
 
 
 

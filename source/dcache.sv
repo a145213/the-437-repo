@@ -10,8 +10,8 @@ module dcache #(
 ) 
 (
   input CLK, nRST,
-  datapath_cache_if.cache dcif,
-  cache_control_if.caches ccif
+  datapath_cache_if.dcache dcif,
+  cache_control_if.dcache ccif
 );
 
   // import types
@@ -358,11 +358,14 @@ always_comb begin
 			ccif.dREN = 1'b0;
 			ccif.dWEN = 1'b1;
 			if (mem_ready) begin
-				nxt_halt_cntr = halt_cntr + 1;
-			end
-			if (halt_cntr == 33) begin
+				//nxt_halt_cntr = halt_cntr + 1;
 				nxt_flushed = 1'b1;
+				//ccif.dREN = 1'b1;
+				//ccif.dWEN = 1'b0;
 			end
+			//if (halt_cntr == 33) begin
+			//	nxt_flushed = 1'b1;
+			//end
 		end
 	endcase
 end

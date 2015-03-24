@@ -40,20 +40,20 @@ module datapath (
   pc_if               pcif();
   control_unit_if     cuif();
   alu_if              aluif();
-  request_unit_if     ruif();
+  //request_unit_if     ruif();
   sign_extender_if    seif();
   fetch_decode_if     fdif();
   decode_execute_if   deif();
   execute_mem_if      emif();
   mem_writeback_if    mwif();
-  pipeline_if         plif();
+  //pipeline_if         plif();
   hazard_unit_if      huif();
   //forwarding_unit_if  huif();
 
   register_file RF (CLK, nRST, rfif);
   pc PC (CLK, nRST, pcif);
   control_unit CU (cuif);
-  request_unit RU (CLK, nRST, ruif);
+  //request_unit RU (CLK, nRST, ruif);
   sign_extender SE(seif);
   alu ALU (aluif);
   pipeline_fetch_decode FD (CLK, nRST, fdif);
