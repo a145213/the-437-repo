@@ -15,8 +15,15 @@
 
 module caches (
   input logic CLK, nRST,
+
+  // It works with this format
   datapath_cache_if dcif,
   cache_control_if ccif
+
+  // But not with this even though it
+  // is the original form?
+  //datapath_cache_if.cache dcif,
+  //cache_control_if.caches ccif
 );
   // import types
   import cpu_types_pkg::*;
