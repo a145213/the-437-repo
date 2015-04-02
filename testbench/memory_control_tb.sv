@@ -6,7 +6,7 @@
 `timescale 1 ns / 1 ns
 
 module memory_control_tb;
-
+  import cpu_types_pkg::*;
   parameter PERIOD = 10;
   logic CLK = 0, nRST;
 
@@ -44,72 +44,206 @@ program test (
   cpu_ram_if ramif
 );
 
+typedef enum {
+  STAGE_INIT,
+  STAGE_POR,
+  STAGE_IFETCH0,
+  STAGE_IFETCH1,
+  STAGE_IFETCH2,
+  STAGE_DFETCH0,
+  STAGE_DFETCH1,
+  STAGE_DFETCH2,
+  STAGE_DWRITE0,
+  STAGE_DWRITE1,
+  STAGE_DWRITE2
+} TestStages;
+TestStages tb_stage;
 
- initial begin
-  import cpu_types_pkg::*;
-  parameter PERIOD = 10;
+initial begin
+  // Initialize variables
+  tb_stage = STAGE_INIT;
+  nRST = 1'b0;
+  ccif.iREN[0] = 1'b0;
+  ccif.iaddr[0] = 32'h00000000;
+  ccif.dREN[0] = 1'b0;
+  ccif.dWEN[0] = 1'b0;
+  ccif.daddr[0] = 32'h00000000;
+  ccif.dstore[0] = 32'h00000000;
+  ccif.ccwrite[0] = 1'b0;
+  ccif.cctrans[0] = 1'b0;
+  ccif.iREN[1] = 1'b0;
+  ccif.iaddr[1] = 32'h00000000;
+  ccif.dREN[1] = 1'b0;
+  ccif.dWEN[1] = 1'b0;
+  ccif.daddr[1] = 32'h00000000;
+  ccif.dstore[1] = 32'h00000000;
+  ccif.ccwrite[1] = 1'b0;
+  ccif.cctrans[1] = 1'b0;
 
-  /*nRST = 0;
-  #(PERIOD);
-  nRST = 1;
-  #(PERIOD);
-  */
+    //
+   // Test ansynchronous reset
+  //
+  @(negedge CLK);
+  tb_stage = STAGE_POR;
+  nRST = 1'b0;
 
-  $display("Initializing...");
-  ccif.iREN[0] = 0;
-  ccif.dREN[0] = 0;
-  ccif.dWEN[0] = 0;
-  ccif.dstore[0] = 0;
-  ccif.iaddr[0] = 0;
-  ccif.daddr[0] = 0;
-  nRST = 1;
+    //
+   // Simulate Instruction Fetches
+  //
+  @(negedge CLK);
+  nRST = 1'b1;
 
-  #(PERIOD);
+
+  // CPU0 Instruction Fetch
+  tb_stage = STAGE_IFETCH0;
+  ccif.iREN[0] = 1'b1;
   ccif.iaddr[0] = 32'h00000004;
-  ccif.iREN[0] = 1;
+  @(negedge ccif.iwait[0]);
+  @(posedge CLK);
+  ccif.iREN[0] = 1'b0;
 
-  #(1)
 
-  if (ccif.iwait[0] != 1)
-    $display("iwait FAILED");
-  else $display("iwait PASSED");
+  // CPU1 Instruction Fetch
+  tb_stage = STAGE_IFETCH1;
+  ccif.iREN[1] = 1'b1;
+  ccif.iaddr[1] = 32'h00000204;
+  @(negedge ccif.iwait[1]);
+  @(posedge CLK);
+  ccif.iREN[1] = 1'b0;
 
-  ccif.dstore[0] = 32'habcdabcd;
-  ccif.daddr[0] = 32'h0000FFFF;
-  $display("Write %h", ccif.dstore[0]);
-  ccif.dWEN[0] = 1;
 
-  #(1)
+  // CPU0 and CPU1 Instruction Fetch
+  // - should go to CPU0 and then CPU1
+  tb_stage = STAGE_IFETCH2;
+  ccif.iREN[0] = 1'b1;
+  ccif.iREN[1] = 1'b1;
+  ccif.iaddr[0] = 32'h00000008;
+  ccif.iaddr[1] = 32'h00000208;
+  @(negedge ccif.iwait[0]);
+  @(posedge CLK);
+  ccif.iREN[0] = 1'b0;
+  @(negedge ccif.iwait[1]);
+  @(posedge CLK);
+  ccif.iREN[1] = 1'b0;
+
+    //
+   // Simulate Data Fetches
+  //
+  // CPU0 Data Fetch (Also Bus Miss)
+  @(negedge CLK);
+  tb_stage = STAGE_DFETCH0;
+  ccif.dREN[0] = 1'b1;
+  ccif.cctrans[0] = 1'b1;
+  ccif.daddr[0] = 32'h00008000;
+  @(negedge CLK);
+  // CC is in SNOOP state
+  @(negedge CLK);
+  // CC is in REPLY state
+  @(negedge ccif.dwait[0]);
+  @(posedge CLK);
+  ccif.daddr[0] = 32'h00008004;
+  @(negedge ccif.dwait[0]);
+  ccif.cctrans[0] = 1'b0;
+  @(posedge CLK);
+  ccif.dREN[0] = 1'b0;
   
-  if (ccif.dwait[0] != 1)
-    $display("dwait FAILED");
-  else $display("dwait PASSED");
+  // CPU1 Data Fetch (Also Bus Miss)
+  @(negedge CLK);
+  tb_stage = STAGE_DFETCH1;
+  ccif.dREN[1] = 1'b1;
+  ccif.cctrans[1] = 1'b1;
+  ccif.daddr[1] = 32'h00008200;
+  @(negedge CLK);
+  // CC is in SNOOP state
+  @(negedge CLK);
+  // CC is in REPLY state
+  @(negedge ccif.dwait[1]);
+  @(posedge CLK);
+  ccif.daddr[1] = 32'h00008204;
+  @(negedge ccif.dwait[1]);
+  ccif.cctrans[1] = 1'b0;
+  @(posedge CLK);
+  ccif.dREN[1] = 1'b0;
 
-  #(PERIOD * 4)
-  ccif.dWEN[0] = 0;
-  #(PERIOD * 4) 
-  ccif.dREN[0] = 1;
-  #(PERIOD * 4)
-  ccif.dREN[0] = 0;
-  $display("Read: %h", ccif.dload[0]);
+  // CPU0 and CPU1 Data Fetch
+  // - should go to CPU0 and then CPU1
+  @(negedge CLK);
+  tb_stage = STAGE_DFETCH2;
+  ccif.dREN[0] = 1'b1;
+  ccif.dREN[1] = 1'b1;
+  ccif.cctrans[0] = 1'b1;
+  ccif.cctrans[1] = 1'b1;
+  ccif.daddr[0] = 32'h00008008;
+  ccif.daddr[1] = 32'h00008208;
+  @(negedge CLK);
+  // CC is in SNOOP state
+  @(negedge CLK);
+  // CC is in REPLY state
+  @(negedge ccif.dwait[0]);
+  @(posedge CLK);
+  ccif.daddr[0] = 32'h0000800C;
+  @(negedge ccif.dwait[0]);
+  ccif.cctrans[0] = 1'b0;
+  @(posedge CLK);
+  ccif.dREN[0] = 1'b0;
 
-  #(PERIOD * 4)
-  ccif.daddr = 32'h0000FFCC;
-  ccif.dstore = 32'hcdcdcdcd;
-  $display("Write %h", ccif.dstore[0]);
-  ccif.dWEN = 1;
-  #(PERIOD * 4)
-  ccif.dWEN = 0;
-  #(PERIOD * 4)
-  ccif.dREN = 1;
-  #(PERIOD * 4)
-  ccif.dREN = 0;
-  $display("Read: %h", ccif.dload[0]);
+  @(negedge CLK);
+  // CC is in SNOOP state
+  @(negedge CLK);
+  // CC is in REPLY state
+  @(negedge ccif.dwait[1]);
+  @(posedge CLK);
+  ccif.daddr[1] = 32'h0000820C;
+  @(negedge ccif.dwait[1]);
+  ccif.cctrans[1] = 1'b0;
+  @(posedge CLK);
+  ccif.dREN[1] = 1'b0;
+
+    //
+   // Simulate Simultaneous Data and Instruction Fetches
+  //
+  // CPU0 Data Write Bus Hit (Cache-2-Cache Transfer)
+  @(negedge CLK);
+  tb_stage = STAGE_DWRITE0;
+  ccif.dREN[0] = 1'b1;
+  ccif.cctrans[0] = 1'b1;
+  ccif.ccwrite[0] = 1'b1;
+  ccif.daddr[0] = 32'h00008010;
+  @(negedge CLK);
+  // CC is in SNOOP state
+  ccif.ccwrite[1] = 1'b1;
+  @(negedge CLK);
+  // CC is in REPLY state
+  ccif.daddr[1] = 32'h00008010;
+  ccif.dWEN[1] = 1'b1;
+  ccif.dstore[1] = 32'hFFFFAAAA;
+  @(negedge ccif.dwait[0]);
+  @(posedge CLK);
+  ccif.daddr[1] = 32'h00008014;
+  @(negedge ccif.dwait[0]);
+  ccif.dstore[1] = 32'hFFFFBBBB;
+  
+  @(posedge CLK);
+  ccif.cctrans[0] = 1'b0;
+  ccif.ccwrite[1] = 1'b0;
+  
+  ccif.dREN[0] = 1'b0;
+  ccif.dWEN[1] = 1'b0;
+
+  // CPU0 and CPU1 Data Write
+  // - should go to CPU1 and then CPU1
+
+  waitCycles(10);
   dump_memory();
   $finish;
-  end
+end
 
-  task automatic dump_memory();
+task waitCycles(int unsigned x);
+  for(int i = 0; i < x; i++)
+    @(posedge CLK);
+endtask
+
+task automatic dump_memory();
   string filename = "memcpu.hex";
   int memfd;
 
@@ -148,6 +282,7 @@ program test (
     $fclose(memfd);
     $display("Finished memory dump.");
   end
-  endtask
+endtask
+
 endprogram
 
