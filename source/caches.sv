@@ -34,9 +34,9 @@ module caches (
   //word_t daddr;
 
   // icache
-  icache #(.SETS(16), .BLKS_PER_SET(1), .WORDS_PER_BLK(1)) ICACHE(CLK, nRST, dcif, ccif);
+  icache #(.SETS(16), .BLKS_PER_SET(1), .WORDS_PER_BLK(1), .CPUID(CPUID)) ICACHE(CLK, nRST, dcif, ccif);
   // dcache
-  dcache #(.SETS(8), .BLKS_PER_SET(2), .WORDS_PER_BLK(2)) DCACHE(CLK, nRST, dcif, ccif);
+  dcache #(.SETS(8), .BLKS_PER_SET(2), .WORDS_PER_BLK(2), .CPUID(CPUID)) DCACHE(CLK, nRST, dcif, ccif);
 
   // Unused signals
   //assign ccif.ccwrite = 1'b0;

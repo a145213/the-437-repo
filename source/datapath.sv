@@ -51,7 +51,7 @@ module datapath (
   //forwarding_unit_if  huif();
 
   register_file RF (CLK, nRST, rfif);
-  pc PC (CLK, nRST, pcif);
+  pc #(.PC_INIT(PC_INIT)) PC (CLK, nRST, pcif);
   control_unit CU (cuif);
   //request_unit RU (CLK, nRST, ruif);
   sign_extender SE(seif);

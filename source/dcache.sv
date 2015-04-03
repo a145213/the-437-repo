@@ -6,7 +6,8 @@
 module dcache #(
     parameter SETS          = 8,
     parameter BLKS_PER_SET  = 2,  // Associativity
-    parameter WORDS_PER_BLK = 2
+    parameter WORDS_PER_BLK = 2,
+    parameter CPUID			= 0
 ) 
 (
   input CLK, nRST,
@@ -207,7 +208,7 @@ assign int_dhit =
 			((daddr.tag == sets[daddr.idx].blocks[1].tag) && (sets[daddr.idx].blocks[1].valid))
 		;
 always_comb begin
-	mem_ready = !ccif.dwait;
+	mem_ready = !ccif.dwait[CPUID];
 	nxt_off_read = 0;
 	nxt_off_write = 0;
 	nxt_data = sets[set_sel].blocks[block_sel].data[data_sel];
@@ -220,12 +221,12 @@ always_comb begin
 	nxt_dhit = 1'b0;
 	nxt_block_sel = sets[set_sel].lru;
 	nxt_flushed = 1'b0;
-	ccif.dREN = 1'b0;
-	ccif.dWEN = 1'b0;
+	ccif.dREN[CPUID] = 1'b0;
+	ccif.dWEN[CPUID] = 1'b0;
 	nxt_hit_cntr = hit_cntr;
-	ccif.daddr = {daddr.tag, daddr.idx, off_read[0], 2'b00};
+	ccif.daddr[CPUID] = {daddr.tag, daddr.idx, off_read[0], 2'b00};
 	dcif.dmemload = sets[set_sel].blocks[block_sel].data[data_sel];
-	ccif.dstore = sets[set_sel].blocks[block_sel].data[data_sel];
+	ccif.dstore[CPUID] = sets[set_sel].blocks[block_sel].data[data_sel];
 
 	casez(cur_state)
 		IDLE: begin
@@ -282,12 +283,12 @@ always_comb begin
 			end
 		end
 		ALLOC_RD: begin
-			ccif.daddr = {daddr.tag, daddr.idx, off_read[0], 2'b00};
-			ccif.dREN = 1'b1;
-			ccif.dWEN = 1'b0;
+			ccif.daddr[CPUID] = {daddr.tag, daddr.idx, off_read[0], 2'b00};
+			ccif.dREN[CPUID] = 1'b1;
+			ccif.dWEN[CPUID] = 1'b0;
 			if (mem_ready) begin
 				nxt_off_read = off_read + 1;
-				nxt_data = ccif.dload;
+				nxt_data = ccif.dload[CPUID];
 				nxt_tag = daddr.tag;
 				nxt_valid = 1'b1;
 				nxt_dirty = 1'b0;
@@ -312,10 +313,10 @@ always_comb begin
 			//$display("%h", sets[set_sel].blocks[block_sel].tag);
 			//$display("%b-%b-%b-%b", sets[set_sel].blocks[block_sel].tag, set_sel, off_write[0], 2'b00);
 			//$display("%h", {sets[set_sel].blocks[block_sel].tag, set_sel, off_write[0], 2'b00});
-			ccif.daddr = {sets[set_sel].blocks[block_sel].tag, set_sel, off_write[0], 2'b00};
-			ccif.dREN = 1'b0;
-			ccif.dWEN = 1'b1;
-			ccif.dstore = sets[set_sel].blocks[block_sel].data[data_sel];
+			ccif.daddr[CPUID] = {sets[set_sel].blocks[block_sel].tag, set_sel, off_write[0], 2'b00};
+			ccif.dREN[CPUID] = 1'b0;
+			ccif.dWEN[CPUID] = 1'b1;
+			ccif.dstore[CPUID] = sets[set_sel].blocks[block_sel].data[data_sel];
 			if (mem_ready) begin
 				nxt_off_write = off_write + 1;
 				nxt_data_sel = nxt_off_write[0];
@@ -331,8 +332,8 @@ always_comb begin
 			end
 		end
 		HALT: begin
-			ccif.daddr = {sets[set_cntr].blocks[block_cntr].tag,set_cntr,word_cntr,2'b00};
-			ccif.dstore = sets[set_cntr].blocks[block_cntr].data[word_cntr];
+			ccif.daddr[CPUID] = {sets[set_cntr].blocks[block_cntr].tag,set_cntr,word_cntr,2'b00};
+			ccif.dstore[CPUID] = sets[set_cntr].blocks[block_cntr].data[word_cntr];
 			nxt_valid = 1'b0;
 			if ((!sets[set_cntr].blocks[block_cntr].dirty || mem_ready) && halt_cntr != 32) begin
 				nxt_halt_cntr = halt_cntr + 1;
@@ -345,23 +346,23 @@ always_comb begin
 			//end
 
 			if (sets[set_cntr].blocks[block_cntr].dirty) begin
-				ccif.dREN = 1'b0;
-				ccif.dWEN = 1'b1;
+				ccif.dREN[CPUID] = 1'b0;
+				ccif.dWEN[CPUID] = 1'b1;
 			end else begin
-				ccif.dREN = 1'b0;
-				ccif.dWEN = 1'b0;
+				ccif.dREN[CPUID] = 1'b0;
+				ccif.dWEN[CPUID] = 1'b0;
 			end
 		end
 		HALT_CNTR: begin
-			ccif.daddr = 32'h00003100;
-			ccif.dstore = hit_cntr;
-			ccif.dREN = 1'b0;
-			ccif.dWEN = 1'b1;
+			ccif.daddr[CPUID] = 32'h00003100;
+			ccif.dstore[CPUID] = hit_cntr;
+			ccif.dREN[CPUID] = 1'b0;
+			ccif.dWEN[CPUID] = 1'b1;
 			if (mem_ready) begin
 				//nxt_halt_cntr = halt_cntr + 1;
 				nxt_flushed = 1'b1;
-				//ccif.dREN = 1'b1;
-				//ccif.dWEN = 1'b0;
+				//ccif.dREN[CPUID] = 1'b1;
+				//ccif.dWEN[CPUID] = 1'b0;
 			end
 			//if (halt_cntr == 33) begin
 			//	nxt_flushed = 1'b1;

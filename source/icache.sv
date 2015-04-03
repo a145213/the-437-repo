@@ -6,7 +6,8 @@
 module icache #(
     parameter SETS          = 16,
     parameter BLKS_PER_SET  = 1,  // Associativity
-    parameter WORDS_PER_BLK = 1
+    parameter WORDS_PER_BLK = 1,
+    parameter CPUID			= 0
 ) 
 (
   input CLK, nRST,
@@ -115,9 +116,6 @@ always_comb begin
 				5'b01001: begin
 					nxt_state = READ;
 				end
-				5'b01011: begin
-					nxt_state = READ;
-				end
 				5'b01000: begin
 					nxt_state = ALLOC_RD;
 				end
@@ -148,7 +146,7 @@ assign int_ihit =
 			((iaddr.tag == sets[iaddr.idx].blocks[0].tag) && (sets[iaddr.idx].blocks[0].valid))
 		;
 always_comb begin
-	mem_ready = !ccif.iwait;
+	mem_ready = !ccif.iwait[CPUID];
 	nxt_off_read = 0;
 	nxt_off_write = 0;
 	nxt_data = sets[set_sel].blocks[block_sel].data[data_sel];
@@ -157,8 +155,8 @@ always_comb begin
 	nxt_valid = sets[set_sel].blocks[block_sel].valid;
 	nxt_halt_cntr = 0;
 	nxt_ihit = 1'b0;
-	ccif.iREN = 1'b0;
-	ccif.iaddr = {iaddr.tag, iaddr.idx, 2'b00};
+	ccif.iREN[CPUID] = 1'b0;
+	ccif.iaddr[CPUID] = {iaddr.tag, iaddr.idx, 2'b00};
 	dcif.imemload = sets[set_sel].blocks[block_sel].data[data_sel];
 	nxt_block_sel = 1'b0;
 	
@@ -192,11 +190,11 @@ always_comb begin
 			nxt_tag = iaddr.tag;
 		end
 		ALLOC_RD: begin
-			ccif.iaddr = {iaddr.tag, iaddr.idx, 2'b00};
-			ccif.iREN = 1'b1;
+			ccif.iaddr[CPUID] = {iaddr.tag, iaddr.idx, 2'b00};
+			ccif.iREN[CPUID] = 1'b1;
 			if (mem_ready) begin
 				nxt_off_read = off_read + 1;
-				nxt_data = ccif.iload;
+				nxt_data = ccif.iload[CPUID];
 				nxt_tag = iaddr.tag;
 				nxt_valid = 1'b1;
 				nxt_data_sel = nxt_off_read[0];
