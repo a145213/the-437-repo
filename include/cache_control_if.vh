@@ -93,6 +93,7 @@ interface cache_control_if;
             ccwrite, cctrans
   );*/
 
+/*
   modport caches (
     input   .iwait(iwait[CPUID]), 
     input   .iload(iload[CPUID]),
@@ -135,9 +136,9 @@ interface cache_control_if;
     output  .cctrans(cctrans[CPUID])   
 );
   
+*/
 
-
-  /*
+  
   modport caches (
     input   .iwait(iwait), 
     input   .iload(iload),
@@ -179,7 +180,7 @@ interface cache_control_if;
     output  .ccwrite(ccwrite),
     output  .cctrans(cctrans)   
 );
-  */
+  
 
 
 
