@@ -1,5 +1,7 @@
 add wave -position insertpoint -group TB sim:/system_tb/*
 add wave -position insertpoint -group RAM  sim:/system_tb/DUT/RAM/ramif/*
+add wave -position insertpoint -group RAM sim:/system_tb/DUT/RAM/count
+add wave -position insertpoint -group RAM sim:/system_tb/DUT/RAM/addr
 add wave -position insertpoint -group CCIF sim:/system_tb/DUT/CPU/CC/ccif/*
 add wave -position insertpoint -group CCIF sim:/system_tb/DUT/CPU/CC/*
 

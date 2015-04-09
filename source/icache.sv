@@ -4,9 +4,9 @@
 `include "cpu_types_pkg.vh"
 
 module icache #(
-    parameter SETS          = 16,
-    parameter BLKS_PER_SET  = 1,  // Associativity
-    parameter WORDS_PER_BLK = 1,
+	parameter SETS = 16,
+	parameter BLKS_PER_SET = 1, // Associativity
+	parameter WORDS_PER_BLK = 1,
     parameter CPUID			= 0
 ) 
 (
@@ -22,11 +22,11 @@ typedef struct packed {
     logic valid;
     logic [ITAG_W-1:0] tag;
     word_t [WORDS_PER_BLK-1:0] data; // Accessed through block offset
-} iblock_t;
+} dblock_t;
 
 typedef struct {
-	iblock_t blocks[BLKS_PER_SET];
-} iset_t;
+	dblock_t blocks[BLKS_PER_SET];
+} dset_t;
 
 typedef enum logic [2:0] {
 	IDLE = 3'b000,
@@ -34,27 +34,33 @@ typedef enum logic [2:0] {
 	WRITE = 3'b010,
 	ALLOC_RD = 3'b011,
 	ALLOC_WB = 3'b100,
-	HALT = 3'b101
+	HALT = 3'b101,
+	HALT_CNTR = 3'b110
 } state;
-  
+
+state cur_state;
+state nxt_state;
+logic mem_ready;
 icachef_t iaddr;
-iset_t sets[SETS]; // Accessed through index
+word_t nxt_data;
+logic [ITAG_W-1:0] nxt_tag;
+logic nxt_valid;
+
+dset_t sets[SETS];
 logic [WORDS_PER_BLK:0] off_write;
 logic [WORDS_PER_BLK:0] off_read;
 logic [WORDS_PER_BLK:0] nxt_off_write;
 logic [WORDS_PER_BLK:0] nxt_off_read;
-logic [IIDX_W-1:0] set_sel;
-logic block_sel;
-logic data_sel;
-logic nxt_data_sel;
-logic cache_write;
-word_t nxt_data;
-logic [ITAG_W-1:0] nxt_tag;
-logic nxt_valid;
-logic mem_ready, ihit;
-logic dp_read, dp_write;
-logic nxt_block_sel;
-state cur_state, nxt_state;
+
+logic [DIDX_W-1:0] set;
+logic block;
+logic nxt_block;
+logic block_arb;
+
+cacheop_t cop;
+logic dp_read;
+logic dp_write;
+
 // Halt Write Back Counters
 logic [2:0] set_cntr;
 logic block_cntr;
@@ -62,60 +68,64 @@ logic word_cntr;
 logic [2:0] nxt_set_cntr;
 logic nxt_block_cntr;
 logic nxt_word_cntr;
-logic [4:0] halt_cntr;
-logic [4:0] nxt_halt_cntr;
-logic nxt_ihit;
+logic [5:0] halt_cntr;
+logic [5:0] nxt_halt_cntr;
 logic int_ihit;
 
+
 // Cache operation variables
-cacheop_t cop;
+
 assign cop = cacheop_t'({1'b0, dcif.imemREN, 1'b0, 1'b0, int_ihit});//'
-assign dp_read = (dcif.imemREN);
+assign dp_read = dcif.imemREN;
 assign dp_write = 1'b0;
 
 // Selection variables
 assign iaddr = icachef_t'(dcif.imemaddr);//'
-assign set_sel = iaddr.idx;
+assign set = iaddr.idx;
 
 // Variables for HALT state
 assign set_cntr = halt_cntr[4:2];
 assign block_cntr = halt_cntr[1];
 assign word_cntr = halt_cntr[0];
 
+// Hit Counter
+word_t hit_cntr;
+word_t nxt_hit_cntr;
+logic quick_hit;
+logic nxt_quick_hit;
+
+
+assign block_arb = (int_ihit)?(nxt_block):(block);
 always_ff @(posedge CLK, negedge nRST) begin
 	if (!nRST) begin
+		sets <= '{default: 0};//'
 		cur_state <= IDLE;
 		off_read <= '0;//'
 		off_write <= '0;//'
-		sets <= '{default: 0};//'
-		data_sel <= 0;
 		halt_cntr <= 0;
-		ihit <= 0;
+		hit_cntr <= 0;
 	end
 	else begin
+		sets[set].blocks[block_arb].data[0] <= nxt_data;
+		sets[set].blocks[block_arb].tag <= nxt_tag;
+		sets[set].blocks[block_arb].valid <= nxt_valid;
 		cur_state <= nxt_state;
 		off_read <= nxt_off_read;
 		off_write <= nxt_off_write;
 		halt_cntr <= nxt_halt_cntr;
-		sets[set_sel].blocks[block_sel].data[data_sel] <= nxt_data;
-		sets[set_sel].blocks[block_sel].tag <= nxt_tag;
-		sets[set_sel].blocks[block_sel].valid <= nxt_valid;
-		data_sel <= nxt_data_sel;
-		block_sel <= nxt_block_sel;
-		ihit <= nxt_ihit;
+		block <= nxt_block;
+		hit_cntr <= nxt_hit_cntr;
+		quick_hit <= nxt_quick_hit;	
 	end
 end
 
+//
+// Next State Logic
+//
 always_comb begin
 	casez(cur_state)
 		IDLE: begin
 			casez(cop)
-				5'b1????: begin
-					nxt_state = HALT;
-				end
-				5'b01001: begin
-					nxt_state = READ;
-				end
 				5'b01000: begin
 					nxt_state = ALLOC_RD;
 				end
@@ -124,104 +134,106 @@ always_comb begin
 				end
 			endcase
 		end
-		READ: begin
-			nxt_state = IDLE;
-		end
 		ALLOC_RD: begin
 			if (mem_ready && off_read == WORDS_PER_BLK-1) begin
-				nxt_state = READ;
+				nxt_state = IDLE;
 			end else begin
 				nxt_state = ALLOC_RD;
 			end
-		end
-		HALT: begin
-			nxt_state = HALT;
 		end
 	endcase
 end
 
 // Output logic
-assign dcif.ihit = ihit;
+assign dcif.ihit = int_ihit;
 assign int_ihit = 
-			((iaddr.tag == sets[iaddr.idx].blocks[0].tag) && (sets[iaddr.idx].blocks[0].valid))
-		;
+			((iaddr.tag == sets[iaddr.idx].blocks[0].tag) && (sets[iaddr.idx].blocks[0].valid));
+assign mem_ready = !ccif.iwait[CPUID];
+
 always_comb begin
-	mem_ready = !ccif.iwait[CPUID];
+	ccif.iREN[CPUID] = 1'b1;
+	ccif.iaddr[CPUID] = {iaddr.tag, iaddr.idx, 2'b00};
+
+	dcif.imemload = sets[set].blocks[block_arb].data[0];
+	
 	nxt_off_read = 0;
 	nxt_off_write = 0;
-	nxt_data = sets[set_sel].blocks[block_sel].data[data_sel];
-	nxt_data_sel = 1'b0;
-	nxt_tag = sets[set_sel].blocks[block_sel].tag;
-	nxt_valid = sets[set_sel].blocks[block_sel].valid;
 	nxt_halt_cntr = 0;
-	nxt_ihit = 1'b0;
-	ccif.iREN[CPUID] = 1'b0;
-	ccif.iaddr[CPUID] = {iaddr.tag, iaddr.idx, 2'b00};
-	dcif.imemload = sets[set_sel].blocks[block_sel].data[data_sel];
-	nxt_block_sel = 1'b0;
+	nxt_hit_cntr = hit_cntr;
+
+	nxt_data = sets[set].blocks[block_arb].data[0];
+	nxt_tag = sets[set].blocks[block_arb].tag;
+	nxt_valid = sets[set].blocks[block_arb].valid;
+	nxt_block = 1'b0;
+
+	nxt_quick_hit = 1'b0;
 	
 	casez(cur_state)
 		IDLE: begin
+			// Reset counters
 			nxt_off_read = 0;
 			nxt_off_write = 0;
 			nxt_halt_cntr = 0;
-			
-			//if (!dcif.halt && dp_write) begin
-			//	nxt_ihit = 1'b1;
-			//end else begin
-			//	nxt_ihit = int_ihit;
-			//end
-			nxt_ihit = (dp_read)?(int_ihit):(1'b0);
-			//nxt_hit_cntr = (nxt_ihit && (dp_write || dp_read) && !dcif.halt)?(hit_cntr + 1):(hit_cntr);
+			nxt_quick_hit = 1'b1;
 
-			// Select the appropriate block
-			if (iaddr.tag == sets[iaddr.idx].blocks[0].tag) begin
-				nxt_block_sel = 1'b0;
-			end
+			// Only do something if we have a valid command sent to the cache
+			// AND we have a ihit
+			if ((dp_read) && int_ihit) begin
+				
+				// Increment the hit counter
+				nxt_hit_cntr = (quick_hit)?(hit_cntr + 1):(hit_cntr);
+				
+				
+				// Select the appropriate block
+				if (iaddr.tag == sets[iaddr.idx].blocks[0].tag) begin
+					nxt_block = 1'b0;
+				end
 
-			// Select the appropriate data
-			if (cop == cacheop_t'(5'b01000)) begin
-				nxt_data_sel = nxt_off_read;
+				// Check whether we are reading or writing
+				if (dp_read) begin
+					// Send appropriate data to processor using:
+					// - Address index (iaddr.idx)
+					// - Block that matches tag (nxt_block_sel)
+					// - Address block offset (iaddr.blkoff)
+					dcif.imemload = sets[iaddr.idx].blocks[nxt_block].data[0];
+					//$display("C2P: m[%h] : c[%h:%h:%h] = %h", dcif.dmemaddr, set, block_arb, blkoff, dcif.imemload);
+				end
+			end else if(dp_read) begin
+				// There was a miss, but still a valid command,
+				// so we prepare the block offset to be 0 for
+				// the alloc/wb state, the selected block to be
+				// the LRU block, and leave the hit counter alone.
+				nxt_hit_cntr = hit_cntr;
 			end
-		end
-		READ: begin
-			// If we are in this state, then we know we had a ihit
-			dcif.imemload = sets[set_sel].blocks[block_sel].data[data_sel];
-			nxt_tag = iaddr.tag;
 		end
 		ALLOC_RD: begin
+			// Send address and REN/WEN to memory controller
 			ccif.iaddr[CPUID] = {iaddr.tag, iaddr.idx, 2'b00};
 			ccif.iREN[CPUID] = 1'b1;
+
+			// Wait for memory to be readable
 			if (mem_ready) begin
+				// Strictly load data into the block
 				nxt_off_read = off_read + 1;
 				nxt_data = ccif.iload[CPUID];
-				nxt_tag = iaddr.tag;
-				nxt_valid = 1'b1;
-				nxt_data_sel = nxt_off_read[0];
+
+				// We now know everything has been written to cache from memory,
+				// so we update the tag, set the block offset according to 
+				// the address from the processor, validate the block, and
+				// reset the dirty bit. This just determines when the last piece 
+				// of data is written to the cache.
+				if (off_read == WORDS_PER_BLK-1) begin
+					nxt_tag = iaddr.tag;
+					nxt_valid = 1'b1;
+				end
+
+				//$display("M2C: c[%h:%h:%h] <= %h = m[%h]", set, block_arb, blkoff, ccif.dload, ccif.iaddr);
 			end else begin
 				nxt_off_read = off_read;
-				nxt_data = sets[set_sel].blocks[block_sel].data[data_sel];
-				nxt_tag = sets[set_sel].blocks[block_sel].tag;
-				nxt_valid = sets[set_sel].blocks[block_sel].valid;
-				nxt_data_sel = data_sel;
+				nxt_data = sets[set].blocks[block_arb].data[0];
+				nxt_tag = sets[set].blocks[block_arb].tag;
+				nxt_valid = sets[set].blocks[block_arb].valid;
 			end
-
-			// Prepare ihit for datapath
-			if (mem_ready && off_read == WORDS_PER_BLK-1) begin
-				// HACK
-				// Possibly just move this to READ/WRITE state
-				nxt_ihit = 1'b1;
-				nxt_data_sel = 1'b0;
-			end
-			
-		end
-		HALT: begin
-			if (halt_cntr != 31) begin
-				nxt_halt_cntr = halt_cntr + 1;
-			end else begin
-				nxt_halt_cntr = halt_cntr;
-			end
-			nxt_valid = 1'b0;
 		end
 	endcase
 end
