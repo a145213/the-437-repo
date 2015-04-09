@@ -52,7 +52,7 @@ logic [WORDS_PER_BLK:0] off_read;
 logic [WORDS_PER_BLK:0] nxt_off_write;
 logic [WORDS_PER_BLK:0] nxt_off_read;
 
-logic [DIDX_W-1:0] set;
+logic [IIDX_W-1:0] set;
 logic block;
 logic nxt_block;
 logic block_arb;

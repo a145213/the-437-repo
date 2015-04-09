@@ -166,7 +166,7 @@ always_comb begin
         ccif.ramREN = ccif.dREN[target];
         ccif.ramaddr = ccif.daddr[target];
         ccif.ramstore = ccif.dstore[target];
-        ccif.dload[initiator] = ccif.dstore[target];
+        //ccif.dload[initiator] = ccif.dstore[target];
         waitram(ccif.ramstate, ccif.dWEN[initiator], ccif.dREN[initiator], ccif.iREN[initiator], ccif.iwait[initiator], ccif.dwait[initiator]);
         //waitram(ccif.ramstate, ccif.dWEN[target], ccif.dREN[target], ccif.iREN[target], ccif.iwait[target], ccif.dwait[target]);
       end else if (ccif.cctrans[initiator]) begin
@@ -174,7 +174,7 @@ always_comb begin
         ccif.ramWEN = ccif.dWEN[initiator];
         ccif.ramREN = ccif.dREN[initiator];
         ccif.ramaddr = ccif.daddr[initiator];
-        ccif.dload[initiator] = ccif.ramload;
+        //ccif.dload[initiator] = ccif.ramload;
         waitram(ccif.ramstate, ccif.dWEN[initiator], ccif.dREN[initiator], ccif.iREN[initiator], ccif.iwait[initiator], ccif.dwait[initiator]);
       end
     end

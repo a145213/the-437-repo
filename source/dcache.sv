@@ -45,7 +45,7 @@ state nxt_state;
 logic mem_ready;
 dcachef_t daddr, nxt_daddr, pre_daddr;
 word_t nxt_data;
-logic [ITAG_W-1:0] nxt_tag;
+logic [DTAG_W-1:0] nxt_tag;
 logic nxt_valid;
 logic dirty;
 logic nxt_dirty;
