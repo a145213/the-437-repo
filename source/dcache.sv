@@ -30,14 +30,17 @@ typedef struct {
 	logic lru;
 } dset_t;
 
-typedef enum logic [2:0] {
-	IDLE = 3'b000,
-	READ = 3'b001,
-	WRITE = 3'b010,
-	ALLOC_RD = 3'b011,
-	ALLOC_WB = 3'b100,
-	HALT = 3'b101,
-	HALT_CNTR = 3'b110
+typedef enum logic [3:0] {
+	IDLE = 4'b0000,
+	READ = 4'b0001,
+	WRITE = 4'b0010,
+	ALLOC_RD = 4'b0011,
+	ALLOC_WB = 4'b0100,
+	HALT = 4'b0101,
+	HALT_CNTR = 4'b0110,
+	DONE = 4'b0111,
+	SNOOP = 4'b1000,
+	BUS_WB = 4'b1001
 } state;
 
 state cur_state;
@@ -66,7 +69,7 @@ logic blkoff;
 logic nxt_blkoff;
 logic blkoff_arb;
 
-cacheop_t cop;
+logic [5:0] cop;
 logic dp_read;
 logic dp_write;
 
@@ -86,7 +89,7 @@ logic flushed;
 logic nxt_flushed;
 
 // Cache operation variables
-assign cop = cacheop_t'({dcif.halt, dcif.dmemREN, dcif.dmemWEN, dirty, int_dhit});//'
+assign cop = ({dcif.halt, ccif.ccwait[CPUID], dcif.dmemREN, dcif.dmemWEN, dirty, int_dhit});
 assign dp_read = (dcif.dmemREN & !dcif.dmemWEN);
 assign dp_write = (dcif.dmemWEN & !dcif.dmemREN);
 
@@ -107,6 +110,8 @@ word_t nxt_hit_cntr;
 logic quick_hit;
 logic nxt_quick_hit;
 
+// Bus
+logic nxt_cctrans;
 
 assign block_arb = (int_dhit)?(nxt_block):(block);
 assign blkoff_arb = (int_dhit)?(daddr.blkoff):(blkoff);
@@ -138,6 +143,7 @@ always_ff @(posedge CLK, negedge nRST) begin
 		hit_cntr <= nxt_hit_cntr;
 		quick_hit <= nxt_quick_hit;	
 		daddr <= nxt_daddr;
+		ccif.cctrans[CPUID] <= nxt_cctrans;
 	end
 end
 
@@ -148,19 +154,19 @@ always_comb begin
 	casez(cur_state)
 		IDLE: begin
 			casez(cop)
-				5'b1????: begin
+				6'b10????: begin
 					nxt_state = HALT;
 				end
-				5'b01010: begin
+				6'b001010: begin
 					nxt_state = ALLOC_WB;
 				end 
-				5'b00110: begin
+				6'b000110: begin
 					nxt_state = ALLOC_WB;
 				end
-				5'b00100: begin
+				6'b000100: begin
 					nxt_state = ALLOC_RD;
 				end
-				5'b01000: begin
+				6'b001000: begin
 					nxt_state = ALLOC_RD;
 				end
 				default: begin
@@ -190,7 +196,14 @@ always_comb begin
 			end
 		end
 		HALT_CNTR: begin
-			nxt_state = HALT_CNTR;
+			if (mem_ready) begin
+				nxt_state = DONE;
+			end else begin
+				nxt_state = HALT_CNTR;
+			end
+		end
+		DONE: begin
+			nxt_state = DONE;
 		end
 	endcase
 end
@@ -212,7 +225,7 @@ always_comb begin
 	ccif.daddr[CPUID] = {daddr.tag, daddr.idx, off_read[0], 2'b00};
 	ccif.dstore[CPUID] = sets[set].blocks[block_arb].data[blkoff];
 
-	ccif.cctrans[CPUID] = 1'b0;
+	nxt_cctrans = 1'b0;
 	ccif.ccwrite[CPUID] = 1'b0;
 
 	dcif.dmemload = sets[set].blocks[block_arb].data[blkoff];
@@ -286,6 +299,7 @@ always_comb begin
 				nxt_hit_cntr = hit_cntr;
 				nxt_block = sets[set].lru;
 				nxt_blkoff = 1'b0;
+				nxt_cctrans = 1'b1;
 			end
 		end
 		ALLOC_RD: begin
@@ -294,7 +308,6 @@ always_comb begin
 			//ccif.daddr[CPUID] = 32'h00000000;
 			ccif.dREN[CPUID] = 1'b1;
 			ccif.dWEN[CPUID] = 1'b0;
-			ccif.cctrans[CPUID] = 1'b1;
 
 			// Wait for memory to be readable
 			if (mem_ready) begin
@@ -313,6 +326,7 @@ always_comb begin
 					nxt_tag = daddr.tag;
 					nxt_valid = 1'b1;
 					nxt_dirty = 1'b0;
+					nxt_cctrans = 1'b0;
 				end
 
 				//$display("M2C: c[%h:%h:%h] <= %h = m[%h]", set, block_arb, blkoff, ccif.dload, ccif.daddr);
@@ -331,7 +345,7 @@ always_comb begin
 			ccif.dstore[CPUID] = sets[set].blocks[block].data[blkoff];
 			ccif.dREN[CPUID] = 1'b0;
 			ccif.dWEN[CPUID] = 1'b1;
-			ccif.cctrans[CPUID] = 1'b1;
+			nxt_cctrans = 1'b1;
 			
 
 			if (mem_ready) begin
@@ -362,14 +376,14 @@ always_comb begin
 
 			// Wait for memory controller to write successfully and keep 
 			// incrementing counter to keep iterating through cache blocks.
-			if ((!sets[set_cntr].blocks[block_cntr].dirty || mem_ready) && halt_cntr != 32) begin
+			if (!ccif.ccwait[CPUID] && (!sets[set_cntr].blocks[block_cntr].dirty || mem_ready) && halt_cntr != 32) begin
 				nxt_halt_cntr = halt_cntr + 1;
 			end else begin
 				nxt_halt_cntr = halt_cntr;
 			end
 
 			// Only write back to memory if the block is dirty
-			if (sets[set_cntr].blocks[block_cntr].dirty) begin
+			if (!ccif.ccwait[CPUID] && sets[set_cntr].blocks[block_cntr].dirty) begin
 				ccif.dREN[CPUID] = 1'b0;
 				ccif.dWEN[CPUID] = 1'b1;
 				//$display("Writing %h to %h", ccif.dstore, ccif.daddr);
@@ -387,6 +401,9 @@ always_comb begin
 			if (mem_ready) begin
 				nxt_flushed = 1'b1;
 			end
+		end
+		DONE: begin
+			nxt_flushed = 1'b1;
 		end
 	endcase
 end

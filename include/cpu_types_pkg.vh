@@ -24,13 +24,13 @@ package cpu_types_pkg;
   //      dcif.WEN
   //      dirty
   // LSB: hit
-  typedef enum logic [4:0] {
-    COP_HALT = 5'b10000,
-    COP_READ = 5'b01001,
-    COP_WRITE = 5'b00101,
-    COP_ALLOC_RD = 5'b01000,
-    COP_ALLOC_WB = 5'b00100,
-    COP_IDLE = 5'b00000
+  typedef enum logic [5:0] {
+    COP_HALT = 6'b100000,
+    COP_READ = 6'b001001,
+    COP_WRITE = 6'b000101,
+    COP_ALLOC_RD = 6'b001000,
+    COP_ALLOC_WB = 6'b000100,
+    COP_IDLE = 6'b000000
   } cacheop_t;
   
   // word width and size

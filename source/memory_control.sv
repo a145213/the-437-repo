@@ -22,11 +22,13 @@ module memory_control (
   // number of cpus for cc
   parameter CPUS = 1;
 
-typedef enum logic [1:0] {
-  ARBITRATE = 2'b00,
-  SNOOP = 2'b01,
-  REPLY = 2'b10,
-  IFETCH = 2'b11
+typedef enum logic [2:0] {
+  ARBITRATE = 3'b000,
+  SNOOP = 3'b001,
+  REPLY = 3'b010,
+  IFETCH = 3'b011,
+  HALT_WRITE = 3'b100,
+  RELAY = 3'b101
 } bus_state;
 bus_state state;
 bus_state nxt_state;
@@ -56,8 +58,12 @@ always_comb begin
   nxt_state = state;
   casez(state)
     ARBITRATE: begin
-      if (ccif.dWEN[0] || ccif.dREN[0] || ccif.dWEN[1] || ccif.dREN[1]) begin
-        nxt_state = SNOOP;
+      if ((ccif.dWEN[0] || ccif.dREN[0] || ccif.dWEN[1] || ccif.dREN[1])) begin
+        if (ccif.cctrans[0] || ccif.cctrans[1]) begin
+          nxt_state = SNOOP;
+        end else begin
+          nxt_state = HALT_WRITE;
+        end
       end else if (ccif.iREN[0] || ccif.iREN[1]) begin
         nxt_state = IFETCH;
       end
@@ -66,10 +72,25 @@ always_comb begin
       nxt_state = REPLY;
     end
     REPLY: begin
-      nxt_state = (ccif.cctrans[initiator] || ccif.dWEN[target])?(REPLY):(ARBITRATE);
+      nxt_state = (ccif.cctrans[initiator])?(REPLY):(ARBITRATE);
+      /*
+      if (!ccif.dwait[initiator]) begin
+        nxt_state = RELAY;
+      end else if (ccif.cctrans[initiator]) begin
+        nxt_state = REPLY;
+      end else begin
+        nxt_state = ARBITRATE;
+      end
+      */
+    end
+    RELAY: begin
+      nxt_state = REPLY;
     end
     IFETCH: begin
       nxt_state = (ccif.iwait[initiator])?(IFETCH):(ARBITRATE);
+    end
+    HALT_WRITE: begin
+      nxt_state = (ccif.dwait[initiator])?(HALT_WRITE):(ARBITRATE);
     end
     default: begin
       nxt_state = ARBITRATE;
@@ -114,12 +135,26 @@ always_comb begin
           nxt_initiator = 1'b1;
           nxt_target = 1'b0;
           nxt_arb = 1'b0;
+        end else if (ccif.dWEN[0] && ccif.dWEN[1]) begin
+          nxt_initiator = arb;
+          nxt_target = !arb;
+          nxt_arb = !arb;
+        end else if (ccif.dWEN[0]) begin
+          nxt_initiator = 1'b0;
+          nxt_target = 1'b1;
+          nxt_arb = 1'b1;
+        end else if (ccif.dWEN[1]) begin
+          nxt_initiator = 1'b1;
+          nxt_target = 1'b0;
+          nxt_arb = 1'b1;
         end
 
         // Grant INITIATOR the bus and tell all others to wait
-        ccif.ccwait[nxt_initiator] = 1'b0;
-        ccif.ccwait[nxt_target] = 1'b1;
-        nxt_snoopaddr = ccif.daddr[nxt_initiator];
+        if (ccif.cctrans[0] || ccif.cctrans[1]) begin
+          ccif.ccwait[nxt_initiator] = 1'b0;
+          ccif.ccwait[nxt_target] = 1'b1;
+          nxt_snoopaddr = ccif.daddr[nxt_initiator];
+        end
 
       end else if (ccif.iREN[0] || ccif.iREN[1]) begin
         // Arbitrate between cores
@@ -160,7 +195,8 @@ always_comb begin
       // do a cache-to-cache cctransfer, otherwise we just
       // get the data straight from memory.
       // Use dWEN instead of ccwrite
-      if (ccif.cctrans[initiator] && ccif.dWEN[target]) begin
+      /*
+      if (ccif.dWEN[target]) begin
         // Cache-to-cache cctransfer w/ WB
         ccif.ramWEN = ccif.dWEN[target];
         ccif.ramREN = ccif.dREN[target];
@@ -169,7 +205,7 @@ always_comb begin
         //ccif.dload[initiator] = ccif.dstore[target];
         waitram(ccif.ramstate, ccif.dWEN[initiator], ccif.dREN[initiator], ccif.iREN[initiator], ccif.iwait[initiator], ccif.dwait[initiator]);
         //waitram(ccif.ramstate, ccif.dWEN[target], ccif.dREN[target], ccif.iREN[target], ccif.iwait[target], ccif.dwait[target]);
-      end else if (ccif.cctrans[initiator]) begin
+      end else begin
         // Get data from memory
         ccif.ramWEN = ccif.dWEN[initiator];
         ccif.ramREN = ccif.dREN[initiator];
@@ -177,6 +213,17 @@ always_comb begin
         //ccif.dload[initiator] = ccif.ramload;
         waitram(ccif.ramstate, ccif.dWEN[initiator], ccif.dREN[initiator], ccif.iREN[initiator], ccif.iwait[initiator], ccif.dwait[initiator]);
       end
+      */
+      // Get data from memory
+      ccif.ramWEN = ccif.dWEN[initiator];
+      ccif.ramREN = ccif.dREN[initiator];
+      ccif.ramaddr = ccif.daddr[initiator];
+      ccif.dload[initiator] = ccif.ramload;
+      waitram(ccif.ramstate, ccif.dWEN[initiator], ccif.dREN[initiator], ccif.iREN[initiator], ccif.iwait[initiator], ccif.dwait[initiator]);
+      
+    end
+    RELAY: begin
+      ccif.dload[initiator] = ccif.ramload;
     end
     IFETCH: begin
       //ccif.ramaddr = ccif.iaddr[initiator];
@@ -184,6 +231,13 @@ always_comb begin
       //ccif.ramWEN = 1'b0;
       //ccif.iload[initiator] = ccif.ramload;
       //waitram(ccif.ramstate, ccif.dWEN[initiator], ccif.dREN[initiator], ccif.iREN[initiator], ccif.iwait[initiator], ccif.dwait[initiator]);
+    end
+    HALT_WRITE: begin
+        ccif.ramWEN = ccif.dWEN[initiator];
+        ccif.ramREN = ccif.dREN[initiator];
+        ccif.ramaddr = ccif.daddr[initiator];
+        ccif.ramstore = ccif.dstore[initiator];
+        waitram(ccif.ramstate, ccif.dWEN[initiator], ccif.dREN[initiator], ccif.iREN[initiator], ccif.iwait[initiator], ccif.dwait[initiator]);
     end
   endcase
   
@@ -194,7 +248,6 @@ always_comb begin
     ccif.iload[initiator] = ccif.ramload;
     waitram(ccif.ramstate, ccif.dWEN[initiator], ccif.dREN[initiator], ccif.iREN[initiator], ccif.iwait[initiator], ccif.dwait[initiator]);
   end
-  
 end
 
 
