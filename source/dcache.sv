@@ -88,6 +88,17 @@ logic int_dhit;
 logic flushed;
 logic nxt_flushed;
 
+// Hit Counter
+word_t hit_cntr;
+word_t nxt_hit_cntr;
+logic quick_hit;
+logic nxt_quick_hit;
+
+// Bus Capability
+logic bus_hit;
+dcachef_t snoopaddr;
+logic nxt_cctrans;
+
 // Cache operation variables
 assign cop = ({dcif.halt, ccif.ccwait[CPUID], dcif.dmemREN, dcif.dmemWEN, dirty, int_dhit});
 assign dp_read = (dcif.dmemREN & !dcif.dmemWEN);
@@ -95,7 +106,7 @@ assign dp_write = (dcif.dmemWEN & !dcif.dmemREN);
 
 // Selection variables
 //assign daddr = dcachef_t'(dcif.dmemaddr);//'
-assign set = daddr.idx;
+assign set = (bus_hit)?(snoopaddr.idx):(daddr.idx);
 assign lru_block = sets[set].blocks[sets[set].lru];
 assign dirty = lru_block.dirty;
 
@@ -104,17 +115,10 @@ assign set_cntr = halt_cntr[4:2];
 assign block_cntr = halt_cntr[1];
 assign word_cntr = halt_cntr[0];
 
-// Hit Counter
-word_t hit_cntr;
-word_t nxt_hit_cntr;
-logic quick_hit;
-logic nxt_quick_hit;
 
-// Bus
-logic nxt_cctrans;
 
-assign block_arb = (int_dhit)?(nxt_block):(block);
-assign blkoff_arb = (int_dhit)?(daddr.blkoff):(blkoff);
+assign block_arb = (int_dhit || bus_hit)?(nxt_block):(block);
+assign blkoff_arb = (int_dhit || bus_hit)?(daddr.blkoff):(blkoff);
 always_ff @(posedge CLK, negedge nRST) begin
 	if (!nRST) begin
 		sets <= '{default: 0};//'
@@ -154,7 +158,7 @@ always_comb begin
 	casez(cur_state)
 		IDLE: begin
 			casez(cop)
-				6'b10????: begin
+				6'b100000: begin
 					nxt_state = HALT;
 				end
 				6'b001010: begin
@@ -168,6 +172,9 @@ always_comb begin
 				end
 				6'b001000: begin
 					nxt_state = ALLOC_RD;
+				end
+				6'b?1????: begin
+					nxt_state = SNOOP;
 				end
 				default: begin
 					nxt_state = IDLE;
@@ -204,6 +211,16 @@ always_comb begin
 		end
 		DONE: begin
 			nxt_state = DONE;
+		end
+		SNOOP: begin
+			nxt_state = (bus_hit && ccif.ccinv[CPUID])?(BUS_WB):(IDLE);
+		end
+		BUS_WB: begin
+			if (mem_ready && off_write == WORDS_PER_BLK-1) begin
+				nxt_state = IDLE;
+			end else begin
+				nxt_state = BUS_WB;
+			end
 		end
 	endcase
 end
@@ -246,6 +263,8 @@ always_comb begin
 	nxt_flushed = 1'b0;
 
 	nxt_quick_hit = 1'b0;
+
+	bus_hit = 1'b0;
 	
 	casez(cur_state)
 		IDLE: begin
@@ -308,6 +327,8 @@ always_comb begin
 			//ccif.daddr[CPUID] = 32'h00000000;
 			ccif.dREN[CPUID] = 1'b1;
 			ccif.dWEN[CPUID] = 1'b0;
+			nxt_cctrans = 1'b1;
+			ccif.ccwrite[CPUID] = dcif.dmemWEN;
 
 			// Wait for memory to be readable
 			if (mem_ready) begin
@@ -315,6 +336,7 @@ always_comb begin
 				nxt_off_read = off_read + 1;
 				nxt_data = ccif.dload[CPUID];
 				nxt_blkoff = nxt_off_read[0];
+				ccif.ccwrite[CPUID] = dcif.dmemWEN;
 
 				// We now know everything has been written to cache from memory,
 				// so we update the tag, set the block offset according to 
@@ -370,7 +392,7 @@ always_comb begin
 			// Send address, data, and REN/WEN to memory controller
 			ccif.daddr[CPUID] = {sets[set_cntr].blocks[block_cntr].tag, set_cntr, word_cntr, 2'b00};
 			ccif.dstore[CPUID] = sets[set_cntr].blocks[block_cntr].data[word_cntr];
-
+			ccif.ccwrite[CPUID] = 1'b1;
 			// Also invalidate all blocks
 			nxt_valid = 1'b0;
 
@@ -404,6 +426,54 @@ always_comb begin
 		end
 		DONE: begin
 			nxt_flushed = 1'b1;
+		end
+		SNOOP: begin
+			snoopaddr = dcachef_t'(ccif.ccsnoopaddr[CPUID]);//'
+			bus_hit = 
+				((snoopaddr.tag == sets[snoopaddr.idx].blocks[0].tag) && (sets[snoopaddr.idx].blocks[0].valid)) ||
+				((snoopaddr.tag == sets[snoopaddr.idx].blocks[1].tag) && (sets[snoopaddr.idx].blocks[1].valid))
+			;
+			if (ccif.ccinv[CPUID] && bus_hit) begin
+				nxt_valid = 1'b0;
+				nxt_blkoff = snoopaddr.blkoff;
+				if (snoopaddr.tag == sets[snoopaddr.idx].blocks[0].tag) begin
+					nxt_block = 1'b0;
+				end else if (snoopaddr.tag == sets[snoopaddr.idx].blocks[1].tag) begin
+					nxt_block = 1'b0;
+				end
+			end
+		end
+		BUS_WB: begin
+			bus_hit = 
+				((snoopaddr.tag == sets[snoopaddr.idx].blocks[0].tag)) ||
+				((snoopaddr.tag == sets[snoopaddr.idx].blocks[1].tag))
+			;
+			// Send address, data, and REN/WEN to memory controller
+			ccif.daddr[CPUID] = {sets[set].blocks[block].tag, set, off_write[0], 2'b00};
+			ccif.dstore[CPUID] = sets[set].blocks[block].data[blkoff];
+			ccif.dREN[CPUID] = 1'b0;
+			ccif.dWEN[CPUID] = 1'b1;
+			//ccif.cctrans[CPUID] = 1'b0;
+			//ccif.ccwrite[CPUID] = 1'b1;
+			
+
+			if (mem_ready) begin
+				nxt_off_write = off_write + 1;
+				nxt_blkoff = nxt_off_write[0];
+
+				// We now know that everything has been writen back to memory,
+				// so we just set the block offset to be 0 since we have to
+				// go directly to the allocate state.
+				if (off_write == WORDS_PER_BLK-1) begin
+					//nxt_blkoff = daddr.blkoff;
+					nxt_blkoff = 1'b0;
+				end
+			end else begin
+				nxt_off_write = off_write;
+				nxt_blkoff = blkoff;
+			end
+
+			//$display("C2M: c[%h:%h:%h] = %h => m[%h]", set, block_arb, blkoff, ccif.dstore, ccif.daddr);
 		end
 	endcase
 end

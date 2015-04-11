@@ -44,6 +44,7 @@ always_ff @(posedge CLK, negedge nRST) begin
     arb <= 0;
     initiator <= 0;
     target <= 0;
+    snoopaddr <= 0;
   end else begin
     state <= nxt_state;
     arb <= nxt_arb;
@@ -72,19 +73,7 @@ always_comb begin
       nxt_state = REPLY;
     end
     REPLY: begin
-      nxt_state = (ccif.cctrans[initiator])?(REPLY):(ARBITRATE);
-      /*
-      if (!ccif.dwait[initiator]) begin
-        nxt_state = RELAY;
-      end else if (ccif.cctrans[initiator]) begin
-        nxt_state = REPLY;
-      end else begin
-        nxt_state = ARBITRATE;
-      end
-      */
-    end
-    RELAY: begin
-      nxt_state = REPLY;
+      nxt_state = (ccif.cctrans[initiator] || ccif.dWEN[target])?(REPLY):(ARBITRATE);
     end
     IFETCH: begin
       nxt_state = (ccif.iwait[initiator])?(IFETCH):(ARBITRATE);
@@ -99,16 +88,21 @@ always_comb begin
 end
 
 // Output logic
-always_comb begin
+always @(*) begin
   ccif.iwait[0] = 1'b1;
   ccif.iwait[1] = 1'b1;
   ccif.dwait[0] = 1'b1;
   ccif.dwait[1] = 1'b1;
-  ccif.iload = 0;
-  ccif.dload = 0;
-  ccif.ccwait = 0;
-  ccif.ccinv = 0;
-  ccif.ccsnoopaddr = 0;
+  ccif.iload[0] = '0;
+  ccif.iload[1] = '0;
+  ccif.dload[0] = '0;
+  ccif.dload[1] = '0;
+  ccif.ccwait[0] = 1'b0;
+  ccif.ccwait[1] = 1'b0;
+  ccif.ccinv[0] = 1'b0;
+  ccif.ccinv[1] = 1'b0;
+  ccif.ccsnoopaddr[0] = '0;
+  ccif.ccsnoopaddr[1] = '0;
   ccif.ramWEN = 0;
   ccif.ramREN = 0;
   ccif.ramaddr = 0;
@@ -190,37 +184,32 @@ always_comb begin
     REPLY: begin
       ccif.ccwait[initiator] = 1'b0;
       ccif.ccwait[target] = 1'b1;
+      if (ccif.ccwrite[initiator]) begin
+        ccif.ccinv[target] = 1'b1;
+      end
+      
 
       // If there was a "bus hit" then we write back and
       // do a cache-to-cache cctransfer, otherwise we just
       // get the data straight from memory.
       // Use dWEN instead of ccwrite
-      /*
       if (ccif.dWEN[target]) begin
         // Cache-to-cache cctransfer w/ WB
         ccif.ramWEN = ccif.dWEN[target];
         ccif.ramREN = ccif.dREN[target];
         ccif.ramaddr = ccif.daddr[target];
         ccif.ramstore = ccif.dstore[target];
-        //ccif.dload[initiator] = ccif.dstore[target];
-        waitram(ccif.ramstate, ccif.dWEN[initiator], ccif.dREN[initiator], ccif.iREN[initiator], ccif.iwait[initiator], ccif.dwait[initiator]);
-        //waitram(ccif.ramstate, ccif.dWEN[target], ccif.dREN[target], ccif.iREN[target], ccif.iwait[target], ccif.dwait[target]);
+        ccif.dload[initiator] = ccif.dstore[target];
+        waitram(ccif.ramstate, ccif.dWEN[target], ccif.dREN[target], ccif.iREN[target], ccif.iwait[initiator], ccif.dwait[initiator]);
+        waitram(ccif.ramstate, ccif.dWEN[target], ccif.dREN[target], ccif.iREN[target], ccif.iwait[target], ccif.dwait[target]);
       end else begin
         // Get data from memory
         ccif.ramWEN = ccif.dWEN[initiator];
         ccif.ramREN = ccif.dREN[initiator];
         ccif.ramaddr = ccif.daddr[initiator];
-        //ccif.dload[initiator] = ccif.ramload;
+        ccif.dload[initiator] = ccif.ramload;
         waitram(ccif.ramstate, ccif.dWEN[initiator], ccif.dREN[initiator], ccif.iREN[initiator], ccif.iwait[initiator], ccif.dwait[initiator]);
       end
-      */
-      // Get data from memory
-      ccif.ramWEN = ccif.dWEN[initiator];
-      ccif.ramREN = ccif.dREN[initiator];
-      ccif.ramaddr = ccif.daddr[initiator];
-      ccif.dload[initiator] = ccif.ramload;
-      waitram(ccif.ramstate, ccif.dWEN[initiator], ccif.dREN[initiator], ccif.iREN[initiator], ccif.iwait[initiator], ccif.dwait[initiator]);
-      
     end
     RELAY: begin
       ccif.dload[initiator] = ccif.ramload;
@@ -247,6 +236,10 @@ always_comb begin
     ccif.ramWEN = 1'b0;
     ccif.iload[initiator] = ccif.ramload;
     waitram(ccif.ramstate, ccif.dWEN[initiator], ccif.dREN[initiator], ccif.iREN[initiator], ccif.iwait[initiator], ccif.dwait[initiator]);
+    if (ccif.ramstate == ACCESS) begin
+      ccif.iwait[initiator] = 1'b0;
+      ccif.dwait[initiator] = 1'b1;
+    end
   end
 end
 
