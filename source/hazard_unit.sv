@@ -116,10 +116,10 @@ module hazard_unit
 
 
     if (huif.w_halt) begin
-      huif.fd_state = PIPE_NOP;
-      huif.de_state = PIPE_NOP;
-      huif.em_state = PIPE_NOP;
-      huif.mw_state = PIPE_NOP;
+      huif.fd_state = PIPE_STALL;
+      huif.de_state = PIPE_STALL;
+      huif.em_state = PIPE_STALL;
+      huif.mw_state = PIPE_STALL;
     end
   end
 

@@ -40,7 +40,8 @@ typedef enum logic [3:0] {
 	HALT_CNTR = 4'b0110,
 	DONE = 4'b0111,
 	SNOOP = 4'b1000,
-	BUS_WB = 4'b1001
+	BUS_WB = 4'b1001,
+	ALLOC_RD_WAIT = 4'b1010
 } state;
 
 state cur_state;
@@ -97,6 +98,7 @@ logic nxt_quick_hit;
 // Bus Capability
 logic bus_hit;
 dcachef_t snoopaddr;
+word_t nxt_snoopaddr;
 logic nxt_cctrans;
 
 // Cache operation variables
@@ -117,7 +119,7 @@ assign word_cntr = halt_cntr[0];
 
 
 
-assign block_arb = (int_dhit || bus_hit)?(nxt_block):(block);
+assign block_arb = (!int_dhit || bus_hit)?(nxt_block):(block);
 assign blkoff_arb = (int_dhit || bus_hit)?(daddr.blkoff):(blkoff);
 always_ff @(posedge CLK, negedge nRST) begin
 	if (!nRST) begin
@@ -147,7 +149,8 @@ always_ff @(posedge CLK, negedge nRST) begin
 		hit_cntr <= nxt_hit_cntr;
 		quick_hit <= nxt_quick_hit;	
 		daddr <= nxt_daddr;
-		ccif.cctrans[CPUID] <= nxt_cctrans;
+		//ccif.cctrans[CPUID] <= nxt_cctrans;
+		snoopaddr <= dcachef_t'(nxt_snoopaddr);//'
 	end
 end
 
@@ -173,16 +176,31 @@ always_comb begin
 				6'b001000: begin
 					nxt_state = ALLOC_RD;
 				end
-				6'b?1????: begin
-					nxt_state = SNOOP;
+				6'b010100: begin
+					nxt_state = ALLOC_RD_WAIT;
+				end
+				6'b011000: begin
+					nxt_state = ALLOC_RD_WAIT;
+				end
+				6'b010000: begin
+					nxt_state = ALLOC_RD_WAIT;
 				end
 				default: begin
 					nxt_state = IDLE;
 				end
 			endcase
 		end
+		ALLOC_RD_WAIT: begin
+			if (!ccif.ccwait[CPUID]) begin
+				nxt_state = IDLE;
+			end else begin
+				nxt_state = SNOOP;
+			end 
+		end
 		ALLOC_RD: begin
-			if (mem_ready && off_read == WORDS_PER_BLK-1) begin
+			if (ccif.ccwait[CPUID]) begin
+				nxt_state = SNOOP;
+			end else if (mem_ready && off_read == WORDS_PER_BLK-1) begin
 				nxt_state = IDLE;
 			end else begin
 				nxt_state = ALLOC_RD;
@@ -196,7 +214,9 @@ always_comb begin
 			end
 		end
 		HALT: begin
-			if (halt_cntr != 32) begin
+			if (dp_write) begin
+				nxt_state = SNOOP;
+			end else if (halt_cntr != 32) begin
 				nxt_state = HALT;
 			end else begin
 				nxt_state = HALT_CNTR;
@@ -213,7 +233,22 @@ always_comb begin
 			nxt_state = DONE;
 		end
 		SNOOP: begin
-			nxt_state = (bus_hit && ccif.ccinv[CPUID])?(BUS_WB):(IDLE);
+			
+			if (bus_hit) begin
+				nxt_state = BUS_WB;
+			end else if (ccif.ccwait[CPUID]) begin
+				nxt_state = SNOOP;
+			end else begin
+				nxt_state = IDLE;
+			end
+			
+			/*
+			if (bus_hit) begin
+				nxt_state = BUS_WB;
+			end else begin
+				nxt_state = IDLE;
+			end
+			*/
 		end
 		BUS_WB: begin
 			if (mem_ready && off_write == WORDS_PER_BLK-1) begin
@@ -242,7 +277,8 @@ always_comb begin
 	ccif.daddr[CPUID] = {daddr.tag, daddr.idx, off_read[0], 2'b00};
 	ccif.dstore[CPUID] = sets[set].blocks[block_arb].data[blkoff];
 
-	nxt_cctrans = 1'b0;
+	//nxt_cctrans = 1'b0;
+	ccif.cctrans[CPUID] = 1'b0;
 	ccif.ccwrite[CPUID] = 1'b0;
 
 	dcif.dmemload = sets[set].blocks[block_arb].data[blkoff];
@@ -274,6 +310,7 @@ always_comb begin
 			nxt_halt_cntr = 0;
 			nxt_quick_hit = 1'b1;
 			nxt_daddr = pre_daddr;
+			nxt_snoopaddr = ccif.ccsnoopaddr[CPUID];
 
 			// Only do something if we have a valid command sent to the cache
 			// AND we have a dhit
@@ -318,8 +355,14 @@ always_comb begin
 				nxt_hit_cntr = hit_cntr;
 				nxt_block = sets[set].lru;
 				nxt_blkoff = 1'b0;
-				nxt_cctrans = 1'b1;
+				//nxt_cctrans = 1'b1;
 			end
+		end
+		ALLOC_RD_WAIT: begin
+			//ccif.dREN[CPUID] = 1'b1;
+			//ccif.dWEN[CPUID] = 1'b0;
+			//ccif.cctrans[CPUID] = 1'b1;
+			//ccif.ccwrite[CPUID] = dcif.dmemWEN;
 		end
 		ALLOC_RD: begin
 			// Send address and REN/WEN to memory controller
@@ -327,7 +370,7 @@ always_comb begin
 			//ccif.daddr[CPUID] = 32'h00000000;
 			ccif.dREN[CPUID] = 1'b1;
 			ccif.dWEN[CPUID] = 1'b0;
-			nxt_cctrans = 1'b1;
+			ccif.cctrans[CPUID] = 1'b1;
 			ccif.ccwrite[CPUID] = dcif.dmemWEN;
 
 			// Wait for memory to be readable
@@ -348,7 +391,7 @@ always_comb begin
 					nxt_tag = daddr.tag;
 					nxt_valid = 1'b1;
 					nxt_dirty = 1'b0;
-					nxt_cctrans = 1'b0;
+					//nxt_cctrans = 1'b0;
 				end
 
 				//$display("M2C: c[%h:%h:%h] <= %h = m[%h]", set, block_arb, blkoff, ccif.dload, ccif.daddr);
@@ -367,7 +410,7 @@ always_comb begin
 			ccif.dstore[CPUID] = sets[set].blocks[block].data[blkoff];
 			ccif.dREN[CPUID] = 1'b0;
 			ccif.dWEN[CPUID] = 1'b1;
-			nxt_cctrans = 1'b1;
+			//nxt_cctrans = 1'b1;
 			
 
 			if (mem_ready) begin
@@ -428,7 +471,7 @@ always_comb begin
 			nxt_flushed = 1'b1;
 		end
 		SNOOP: begin
-			snoopaddr = dcachef_t'(ccif.ccsnoopaddr[CPUID]);//'
+			//snoopaddr = dcachef_t'(ccif.ccsnoopaddr[CPUID]);//'
 			bus_hit = 
 				((snoopaddr.tag == sets[snoopaddr.idx].blocks[0].tag) && (sets[snoopaddr.idx].blocks[0].valid)) ||
 				((snoopaddr.tag == sets[snoopaddr.idx].blocks[1].tag) && (sets[snoopaddr.idx].blocks[1].valid))
@@ -439,8 +482,13 @@ always_comb begin
 				if (snoopaddr.tag == sets[snoopaddr.idx].blocks[0].tag) begin
 					nxt_block = 1'b0;
 				end else if (snoopaddr.tag == sets[snoopaddr.idx].blocks[1].tag) begin
-					nxt_block = 1'b0;
+					nxt_block = 1'b1;
 				end
+				ccif.dREN[CPUID] = 1'b0;
+				ccif.dWEN[CPUID] = 1'b1;
+				//ccif.cctrans[CPUID] = 1'b1;
+			end else begin
+				//nxt_cctrans = 1'b0;
 			end
 		end
 		BUS_WB: begin
@@ -448,9 +496,10 @@ always_comb begin
 				((snoopaddr.tag == sets[snoopaddr.idx].blocks[0].tag)) ||
 				((snoopaddr.tag == sets[snoopaddr.idx].blocks[1].tag))
 			;
+			nxt_block = block;
 			// Send address, data, and REN/WEN to memory controller
-			ccif.daddr[CPUID] = {sets[set].blocks[block].tag, set, off_write[0], 2'b00};
-			ccif.dstore[CPUID] = sets[set].blocks[block].data[blkoff];
+			ccif.daddr[CPUID] = {sets[set].blocks[block_arb].tag, set, off_write[0], 2'b00};
+			ccif.dstore[CPUID] = sets[set].blocks[block_arb].data[blkoff];
 			ccif.dREN[CPUID] = 1'b0;
 			ccif.dWEN[CPUID] = 1'b1;
 			//ccif.cctrans[CPUID] = 1'b0;

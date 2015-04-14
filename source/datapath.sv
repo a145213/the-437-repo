@@ -161,7 +161,7 @@ module datapath (
 
   assign pcif.PC_WEN = huif.PC_WEN;
   assign dpif.imemaddr = pc;
-  assign dpif.imemREN = 1;
+  assign dpif.imemREN = !mwif.w_halt;
 
 
   //

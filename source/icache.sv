@@ -57,7 +57,7 @@ logic block;
 logic nxt_block;
 logic block_arb;
 
-cacheop_t cop;
+logic [4:0] cop;
 logic dp_read;
 logic dp_write;
 
@@ -75,7 +75,7 @@ logic int_ihit;
 
 // Cache operation variables
 
-assign cop = cacheop_t'({1'b0, dcif.imemREN, 1'b0, 1'b0, int_ihit});//'
+assign cop = ({1'b0, dcif.imemREN, 1'b0, 1'b0, int_ihit});
 assign dp_read = dcif.imemREN;
 assign dp_write = 1'b0;
 
@@ -95,7 +95,8 @@ logic quick_hit;
 logic nxt_quick_hit;
 
 
-assign block_arb = (int_ihit)?(nxt_block):(block);
+//assign block_arb = (int_ihit)?(nxt_block):(block);
+assign block_arb = 1'b0;
 always_ff @(posedge CLK, negedge nRST) begin
 	if (!nRST) begin
 		sets <= '{default: 0};//'
@@ -151,7 +152,7 @@ assign int_ihit =
 assign mem_ready = !ccif.iwait[CPUID];
 
 always_comb begin
-	ccif.iREN[CPUID] = 1'b1;
+	ccif.iREN[CPUID] = 1'b0;
 	ccif.iaddr[CPUID] = {iaddr.tag, iaddr.idx, 2'b00};
 
 	dcif.imemload = sets[set].blocks[block_arb].data[0];
@@ -216,6 +217,7 @@ always_comb begin
 				// Strictly load data into the block
 				nxt_off_read = off_read + 1;
 				nxt_data = ccif.iload[CPUID];
+				//nxt_data = 32'hDEADBEEF;
 
 				// We now know everything has been written to cache from memory,
 				// so we update the tag, set the block offset according to 
