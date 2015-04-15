@@ -227,6 +227,7 @@ always_comb begin
 				if (off_read == WORDS_PER_BLK-1) begin
 					nxt_tag = iaddr.tag;
 					nxt_valid = 1'b1;
+					ccif.iREN[CPUID] = 1'b0;
 				end
 
 				//$display("M2C: c[%h:%h:%h] <= %h = m[%h]", set, block_arb, blkoff, ccif.dload, ccif.iaddr);
