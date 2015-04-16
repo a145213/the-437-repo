@@ -238,7 +238,7 @@ always_comb begin
 			end else if (halt_cntr != 32) begin
 				nxt_state = HALT;
 			end else begin
-				nxt_state = HALT_CNTR;
+				nxt_state = DONE;
 			end
 		end
 		HALT_CNTR: begin
@@ -253,8 +253,9 @@ always_comb begin
 		end
 		SNOOP: begin
 			
-			if (bus_hit && ccinv) begin
+			if (bus_hit) begin
 				nxt_state = BUS_WB;
+				nxt_state = (ccinv)?(ALLOC_RD):(BUS_WB);
 			end else if (ccwait) begin
 				nxt_state = SNOOP;
 			end else begin
@@ -270,8 +271,10 @@ always_comb begin
 			*/
 		end
 		BUS_WB: begin
-			if (mem_ready && off_write == WORDS_PER_BLK-1) begin
+			if (!ccwait) begin
 				nxt_state = IDLE;
+			end else if (mem_ready && off_write == WORDS_PER_BLK-1) begin
+				nxt_state = (ccwait && dcif.halt)?(HALT):(IDLE);
 			end else begin
 				nxt_state = BUS_WB;
 			end
@@ -282,10 +285,10 @@ end
 // Output logic
 assign dcif.dhit = int_dhit;
 assign dcif.flushed = flushed;
-assign int_dhit = 
-			((daddr.tag == sets[daddr.idx].blocks[0].tag) && (sets[daddr.idx].blocks[0].valid)) ||
-			((daddr.tag == sets[daddr.idx].blocks[1].tag) && (sets[daddr.idx].blocks[1].valid))
-		;
+//assign int_dhit = 
+//			((daddr.tag == sets[daddr.idx].blocks[0].tag) && (sets[daddr.idx].blocks[0].valid)) ||
+//			((daddr.tag == sets[daddr.idx].blocks[1].tag) && (sets[daddr.idx].blocks[1].valid))
+//		;
 assign mem_ready = !dwait;
 
 assign pre_daddr = dcachef_t'(dcif.dmemaddr);//'
@@ -294,7 +297,10 @@ always_comb begin
 	set = daddr.idx;
 	block_arb = block;
 	blkoff_arb = daddr.blkoff;
-	//blkoff_arb = (int_dhit || bus_hit)?(daddr.blkoff):(blkoff);
+	int_dhit = 
+		((daddr.tag == sets[daddr.idx].blocks[0].tag) && (sets[daddr.idx].blocks[0].valid)) ||
+		((daddr.tag == sets[daddr.idx].blocks[1].tag) && (sets[daddr.idx].blocks[1].valid))
+	;
 
 	ccif.dREN[CPUID] = 1'b0;
 	ccif.dWEN[CPUID] = 1'b0;
@@ -324,7 +330,7 @@ always_comb begin
 
 	nxt_quick_hit = 1'b0;
 
-	//bus_hit = 1'b0;
+	
 	bus_hit = 
 				((snoopaddr.tag == sets[snoopaddr.idx].blocks[0].tag) && (sets[snoopaddr.idx].blocks[0].valid)) ||
 				((snoopaddr.tag == sets[snoopaddr.idx].blocks[1].tag) && (sets[snoopaddr.idx].blocks[1].valid))
@@ -340,6 +346,10 @@ always_comb begin
 			nxt_quick_hit = 1'b1;
 			nxt_daddr = pre_daddr;
 			nxt_snoopaddr = ccif.ccsnoopaddr[CPUID];
+			int_dhit = 
+				((pre_daddr.tag == sets[pre_daddr.idx].blocks[0].tag) && (sets[pre_daddr.idx].blocks[0].valid)) ||
+				((pre_daddr.tag == sets[pre_daddr.idx].blocks[1].tag) && (sets[pre_daddr.idx].blocks[1].valid))
+			;
 
 			// Only do something if we have a valid command sent to the cache
 			// AND we have a dhit
@@ -361,6 +371,7 @@ always_comb begin
 				end else if (pre_daddr.tag == sets[pre_daddr.idx].blocks[1].tag) begin
 					nxt_block = 1'b1;
 				end
+				block_arb = nxt_block;
 
 				// Check whether we are reading or writing
 				if (dp_read) begin
@@ -389,6 +400,14 @@ always_comb begin
 				ccif.dREN[CPUID] = 1'b1;
 				ccif.dWEN[CPUID] = 1'b0;
 			end
+
+			if (ccwait) begin
+				set = snoopaddr.idx;
+				block_arb = nxt_block;
+				nxt_snoopaddr = ccif.ccsnoopaddr[CPUID];
+				nxt_valid = sets[set].blocks[block_arb].valid;
+				nxt_tag = sets[set].blocks[block_arb].tag;
+			end
 		end
 		ALLOC_RD_WAIT: begin
 			//ccif.dREN[CPUID] = 1'b1;
@@ -397,6 +416,9 @@ always_comb begin
 			//ccif.ccwrite[CPUID] = dcif.dmemWEN;
 		end
 		ALLOC_RD: begin
+			blkoff_arb = blkoff;
+			int_dhit = 1'b0;
+
 			// Send address and REN/WEN to memory controller
 			ccif.daddr[CPUID] = {daddr.tag, daddr.idx, off_read[0], 2'b00};
 			//ccif.daddr[CPUID] = 32'h00000000;
@@ -423,7 +445,8 @@ always_comb begin
 					nxt_tag = daddr.tag;
 					nxt_valid = 1'b1;
 					nxt_dirty = 1'b0;
-					nxt_data = sets[set].blocks[block_arb].data[blkoff_arb];
+					//nxt_data = sets[set].blocks[block_arb].data[blkoff_arb];
+
 				end else if (off_read == WORDS_PER_BLK-2) begin
 					ccif.cctrans[CPUID] = 1'b0;
 				end
@@ -481,14 +504,14 @@ always_comb begin
 
 			// Wait for memory controller to write successfully and keep 
 			// incrementing counter to keep iterating through cache blocks.
-			if ((!sets[set_cntr].blocks[block_cntr].dirty || mem_ready) && halt_cntr != 32) begin
+			if ((!sets[set_cntr].blocks[block_cntr].dirty || !sets[set_cntr].blocks[block_cntr].valid || mem_ready) && halt_cntr != 32) begin
 				nxt_halt_cntr = halt_cntr + 1;
 			end else begin
 				nxt_halt_cntr = halt_cntr;
 			end
 
 			// Only write back to memory if the block is dirty
-			if (sets[set_cntr].blocks[block_cntr].dirty) begin
+			if (sets[set_cntr].blocks[block_cntr].dirty && sets[set_cntr].blocks[block_cntr].valid) begin
 				ccif.dREN[CPUID] = 1'b0;
 				ccif.dWEN[CPUID] = 1'b1;
 				//$display("Writing %h to %h", ccif.dstore, ccif.daddr);
@@ -513,7 +536,10 @@ always_comb begin
 			if (ccwait) begin
 				ccif.dREN[CPUID] = 1'b0;
 				ccif.dWEN[CPUID] = 1'b0;
+				ccif.ccwrite[CPUID] = 1'b0;
 				blkoff_arb = word_cntr;
+			end else if (halt_cntr == 32) begin
+				ccif.ccwrite[CPUID] = 1'b0;
 			end
 		end
 		HALT_CNTR: begin
@@ -536,6 +562,12 @@ always_comb begin
 		SNOOP: begin
 			set = snoopaddr.idx;
 			block_arb = nxt_block;
+			nxt_snoopaddr = ccif.ccsnoopaddr[CPUID];
+
+			/////////
+			nxt_data = sets[set].blocks[block_arb].data[off_write[0]];
+
+
 
 
 			//snoopaddr = dcachef_t'(ccif.ccsnoopaddr[CPUID]);//'
@@ -543,14 +575,15 @@ always_comb begin
 				((snoopaddr.tag == sets[snoopaddr.idx].blocks[0].tag) && (sets[snoopaddr.idx].blocks[0].valid)) ||
 				((snoopaddr.tag == sets[snoopaddr.idx].blocks[1].tag) && (sets[snoopaddr.idx].blocks[1].valid))
 			;
-			if (bus_hit && ccinv) begin
-				nxt_valid = 1'b0;
+			if (bus_hit) begin
+				nxt_valid = !ccinv;
 				nxt_blkoff = snoopaddr.blkoff;
 				if (snoopaddr.tag == sets[snoopaddr.idx].blocks[0].tag) begin
 					nxt_block = 1'b0;
 				end else if (snoopaddr.tag == sets[snoopaddr.idx].blocks[1].tag) begin
 					nxt_block = 1'b1;
 				end
+				block_arb = nxt_block;
 				ccif.dREN[CPUID] = 1'b0;
 				ccif.dWEN[CPUID] = 1'b1;
 				//ccif.cctrans[CPUID] = 1'b1;
@@ -562,10 +595,16 @@ always_comb begin
 		BUS_WB: begin
 			set = snoopaddr.idx;
 			//block_arb = nxt_block;
-
+			nxt_halt_cntr = halt_cntr;
+			/*
 			bus_hit = 
-				((snoopaddr.tag == sets[snoopaddr.idx].blocks[0].tag)) ||
-				((snoopaddr.tag == sets[snoopaddr.idx].blocks[1].tag))
+				((snoopaddr.tag == sets[snoopaddr.idx].blocks[0].tag) && (sets[snoopaddr.idx].blocks[0].valid)) ||
+				((snoopaddr.tag == sets[snoopaddr.idx].blocks[1].tag) && (sets[snoopaddr.idx].blocks[1].valid))
+			;
+			*/
+			bus_hit = 
+				(snoopaddr.tag == sets[snoopaddr.idx].blocks[0].tag) ||
+				(snoopaddr.tag == sets[snoopaddr.idx].blocks[1].tag)
 			;
 			nxt_block = block;
 			// Send address, data, and REN/WEN to memory controller
@@ -592,10 +631,22 @@ always_comb begin
 					//nxt_blkoff = daddr.blkoff;
 					nxt_blkoff = 1'b0;
 					nxt_dirty = 1'b0;
+					ccif.dREN[CPUID] = 1'b0;
+					ccif.dWEN[CPUID] = 1'b0;
+					ccif.ccwrite[CPUID] = 1'b0;
 				end
 			end else begin
 				nxt_off_write = off_write;
 				nxt_blkoff = blkoff;
+			end
+
+			if (!ccwait) begin
+				ccif.dREN[CPUID] = 1'b0;
+				ccif.dWEN[CPUID] = 1'b0;
+				ccif.ccwrite[CPUID] = 1'b0;
+				//blkoff_arb = word_cntr;
+			end else if (ccwait) begin
+
 			end
 
 			//$display("C2M: c[%h:%h:%h] = %h => m[%h]", set, block_arb, blkoff, ccif.dstore, ccif.daddr);

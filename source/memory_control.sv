@@ -242,9 +242,10 @@ always_comb begin
           //ccif.ccwait[nxt_initiator] = 1'b0;
           //ccif.ccwait[nxt_target] = 1'b1;
           //ccif.ccinv[nxt_target] = ccwrite[nxt_initiator];
-          nxt_snoopaddr = daddr[nxt_initiator];
+          //nxt_snoopaddr = daddr[nxt_initiator];
           //ccif.ccsnoopaddr[nxt_target] = nxt_snoopaddr;
         end
+        nxt_snoopaddr = daddr[nxt_initiator];
 
       end else if (iREN[0] || iREN[1]) begin
         // Arbitrate between cores
@@ -293,6 +294,7 @@ always_comb begin
       if (ccwrite[initiator]) begin
         ccif.ccinv[target] = 1'b1;
       end
+      nxt_snoopaddr = daddr[nxt_initiator];
       ccif.ccsnoopaddr[target] = snoopaddr;
 
       // Cache-to-cache cctransfer w/ WB
@@ -351,6 +353,10 @@ always_comb begin
         // Grant
       ccif.ccwait[initiator] = 1'b0;
       ccif.ccwait[target] = 1'b1;
+      // Snoop
+      ccif.ccinv[target] = 1'b1;
+      nxt_snoopaddr = daddr[nxt_initiator];
+      ccif.ccsnoopaddr[target] = snoopaddr;
 
       ccif.ramWEN = dWEN[initiator];
       ccif.ramREN = dREN[initiator];
