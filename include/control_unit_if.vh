@@ -13,7 +13,7 @@ interface control_unit_if;
 
   logic halt;
   // ouput to request unit
-  logic iREN, dWEN, dREN;
+  logic iREN, dWEN, dREN, datomic;
 
   // mux select register destination
   logic [1:0] RegDst;
@@ -46,13 +46,13 @@ interface control_unit_if;
 
   modport cu (
     input opcode, funct, alu_zero, overflow,
-    output halt, iREN, dREN, dWEN, RegDst, MemToReg, 
+    output halt, iREN, dREN, dWEN, datomic, RegDst, MemToReg, 
     PCSrc, ALUSrc, RegWrite, MemWrite, MemRead, ExtOp, alu_op, check_overflow, check_zero
   );
 
   modport tb (
     output opcode, funct, alu_zero, overflow,
-    input halt, iREN, dREN, dWEN, RegDst, MemToReg, 
+    input halt, iREN, dREN, dWEN, datomic, RegDst, MemToReg, 
     PCSrc, ALUSrc, RegWrite, MemWrite, MemRead, ExtOp, alu_op, check_overflow, check_zero
   );
 

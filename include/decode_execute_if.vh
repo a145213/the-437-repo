@@ -15,6 +15,7 @@ interface decode_execute_if;
   // Decode Stage Generated Signals
   logic d_dREN, e_dREN;
   logic d_dWEN, e_dWEN;
+  logic d_datomic, e_datomic;
   logic d_RegWrite, e_RegWrite;
   logic d_halt, e_halt;
   logic d_check_zero, e_check_zero;
@@ -45,6 +46,7 @@ interface decode_execute_if;
             d_MemToReg,
             d_dREN,
             d_dWEN,
+	    d_datomic,
             d_RegWrite,
             d_halt,
             d_check_zero,
@@ -67,6 +69,7 @@ interface decode_execute_if;
             e_MemToReg,
             e_dREN,
             e_dWEN,
+	    e_datomic,
             e_RegWrite,
             e_halt,
             e_check_zero,

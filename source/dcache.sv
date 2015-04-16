@@ -105,6 +105,10 @@ logic ccwait;
 logic ccinv;
 logic dwait;
 
+// LL and SC Capability
+word_t link_address, nxt_link_address;
+logic link_valid, nxt_link_valid;
+
 // Cache operation variables
 assign cop = ({dcif.halt, ccwait, dcif.dmemREN, dcif.dmemWEN, dirty, int_dhit});
 assign dp_read = (dcif.dmemREN & !dcif.dmemWEN);
@@ -124,6 +128,8 @@ assign word_cntr = halt_cntr[0];
 
 
 
+
+
 //assign block_arb = (!int_dhit || bus_hit)?(nxt_block):(block);
 //assign blkoff_arb = (int_dhit || bus_hit)?(daddr.blkoff):(blkoff);
 
@@ -140,6 +146,8 @@ always_ff @(posedge CLK, negedge nRST) begin
 		daddr <= 0;
 		block <= 0;
 		blkoff <= 0;
+		link_address <= 0;
+		link_valid <= 0;
 	end
 	else begin
 		sets[set].blocks[block_arb].data[blkoff_arb] <= nxt_data;
@@ -162,6 +170,8 @@ always_ff @(posedge CLK, negedge nRST) begin
 		ccwait <= ccif.ccwait[CPUID];
 		ccinv <= ccif.ccinv[CPUID];
 		dwait <= ccif.dwait[CPUID];
+		link_address <= nxt_link_address;
+		link_valid <= nxt_link_valid;
 	end
 end
 
@@ -255,7 +265,7 @@ always_comb begin
 			
 			if (bus_hit) begin
 				nxt_state = BUS_WB;
-				nxt_state = (ccinv)?(ALLOC_RD):(BUS_WB);
+				//nxt_state = (ccinv)?(ALLOC_RD):(BUS_WB);
 			end else if (ccwait) begin
 				nxt_state = SNOOP;
 			end else begin
@@ -371,7 +381,7 @@ always_comb begin
 				end else if (pre_daddr.tag == sets[pre_daddr.idx].blocks[1].tag) begin
 					nxt_block = 1'b1;
 				end
-				block_arb = nxt_block;
+				
 
 				// Check whether we are reading or writing
 				if (dp_read) begin
@@ -379,12 +389,17 @@ always_comb begin
 					// - Address index (daddr.idx)
 					// - Block that matches tag (nxt_block_sel)
 					// - Address block offset (daddr.blkoff)
-					dcif.dmemload = sets[pre_daddr.idx].blocks[nxt_block].data[pre_daddr.blkoff];
+					dcif.dmemload = sets[pre_daddr.idx].blocks[block].data[pre_daddr.blkoff];
 					//$display("C2P: m[%h] : c[%h:%h:%h] = %h", dcif.dmemaddr, set, block_arb, blkoff, dcif.dmemload);
 				end else if (dp_write) begin
 					// Write data to cache
 					nxt_data = dcif.dmemstore;
 					nxt_dirty = 1'b1;
+					nxt_valid = 1'b1;
+					nxt_tag = pre_daddr.tag;
+					set = pre_daddr.idx;
+					block_arb = nxt_block;
+					blkoff_arb = pre_daddr.blkoff;
 					//$display("P2C: m[%h] : c[%h:%h:%h] <= %h", dcif.dmemaddr, set, block_arb, blkoff, dcif.dmemstore);
 				end
 			end else if(dp_write || dp_read) begin
@@ -399,6 +414,35 @@ always_comb begin
 				ccif.cctrans[CPUID] = 1'b1;
 				ccif.dREN[CPUID] = 1'b1;
 				ccif.dWEN[CPUID] = 1'b0;
+			end
+
+			// LL
+			if (dcif.datomic && dp_read) begin
+				nxt_link_address = dcif.dmemaddr;
+				nxt_link_valid = 1'b1;
+			end else begin
+				nxt_link_address = link_address;
+				nxt_link_valid = link_valid;
+			end
+
+			// SC
+			if (dcif.datomic && dp_write) begin
+				// Compare link register and incoming address and
+				// test valid bit
+				if (link_address == dcif.dmemaddr && link_valid) begin
+					// If successful store like normal
+					nxt_data = dcif.dmemstore;
+					nxt_dirty = 1'b1;
+					nxt_valid = 1'b1;
+					nxt_tag = pre_daddr.tag;
+					set = pre_daddr.idx;
+					block_arb = nxt_block;
+					blkoff_arb = pre_daddr.blkoff;
+					dcif.dmemload = 32'h00000001;
+				end else begin
+					// Else return with failure
+					dcif.dmemload = 32'h00000000;
+				end
 			end
 
 			if (ccwait) begin
@@ -492,6 +536,7 @@ always_comb begin
 			set = set_cntr;
 			block_arb = block_cntr;
 			blkoff_arb = word_cntr;
+			nxt_block = block;
 
 			// Send address, data, and REN/WEN to memory controller
 			ccif.daddr[CPUID] = {sets[set_cntr].blocks[block_cntr].tag, set_cntr, word_cntr, 2'b00};
@@ -538,6 +583,7 @@ always_comb begin
 				ccif.dWEN[CPUID] = 1'b0;
 				ccif.ccwrite[CPUID] = 1'b0;
 				blkoff_arb = word_cntr;
+				nxt_data = sets[set].blocks[block_arb].data[off_write[0]];
 			end else if (halt_cntr == 32) begin
 				ccif.ccwrite[CPUID] = 1'b0;
 			end
@@ -565,7 +611,10 @@ always_comb begin
 			nxt_snoopaddr = ccif.ccsnoopaddr[CPUID];
 
 			/////////
-			nxt_data = sets[set].blocks[block_arb].data[off_write[0]];
+			//nxt_data = 32'hFFFFFFFF;
+			nxt_tag = sets[set].blocks[block_arb].tag;
+			nxt_dirty = sets[set].blocks[block_arb].dirty;
+			nxt_valid = sets[set].blocks[block_arb].valid;
 
 
 
@@ -576,7 +625,7 @@ always_comb begin
 				((snoopaddr.tag == sets[snoopaddr.idx].blocks[1].tag) && (sets[snoopaddr.idx].blocks[1].valid))
 			;
 			if (bus_hit) begin
-				nxt_valid = !ccinv;
+				//nxt_valid = !ccinv;
 				nxt_blkoff = snoopaddr.blkoff;
 				if (snoopaddr.tag == sets[snoopaddr.idx].blocks[0].tag) begin
 					nxt_block = 1'b0;
@@ -587,6 +636,12 @@ always_comb begin
 				ccif.dREN[CPUID] = 1'b0;
 				ccif.dWEN[CPUID] = 1'b1;
 				//ccif.cctrans[CPUID] = 1'b1;
+				nxt_data = sets[set].blocks[block_arb].data[blkoff_arb];
+				nxt_tag = sets[set].blocks[block_arb].tag;
+				nxt_dirty = sets[set].blocks[block_arb].dirty;
+				nxt_valid = sets[set].blocks[block_arb].valid;
+			end else if (!ccwait) begin
+				nxt_data = sets[set].blocks[block_arb].data[blkoff_arb];
 			end else begin
 				//nxt_cctrans = 1'b0;
 				ccif.ccwrite[CPUID] = 1'b1;
@@ -596,16 +651,18 @@ always_comb begin
 			set = snoopaddr.idx;
 			//block_arb = nxt_block;
 			nxt_halt_cntr = halt_cntr;
-			/*
+			
 			bus_hit = 
 				((snoopaddr.tag == sets[snoopaddr.idx].blocks[0].tag) && (sets[snoopaddr.idx].blocks[0].valid)) ||
 				((snoopaddr.tag == sets[snoopaddr.idx].blocks[1].tag) && (sets[snoopaddr.idx].blocks[1].valid))
 			;
-			*/
+			
+			/*
 			bus_hit = 
 				(snoopaddr.tag == sets[snoopaddr.idx].blocks[0].tag) ||
 				(snoopaddr.tag == sets[snoopaddr.idx].blocks[1].tag)
 			;
+			*/
 			nxt_block = block;
 			// Send address, data, and REN/WEN to memory controller
 			ccif.daddr[CPUID] = {sets[set].blocks[block_arb].tag, set, off_write[0], 2'b00};
@@ -631,9 +688,11 @@ always_comb begin
 					//nxt_blkoff = daddr.blkoff;
 					nxt_blkoff = 1'b0;
 					nxt_dirty = 1'b0;
+					nxt_valid = !ccinv;
 					ccif.dREN[CPUID] = 1'b0;
 					ccif.dWEN[CPUID] = 1'b0;
 					ccif.ccwrite[CPUID] = 1'b0;
+					nxt_data = sets[set].blocks[block_arb].data[nxt_blkoff];
 				end
 			end else begin
 				nxt_off_write = off_write;

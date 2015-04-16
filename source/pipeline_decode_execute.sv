@@ -17,6 +17,7 @@ always_ff @ (posedge CLK, negedge nRST) begin
     deif.e_MemToReg <= 0;
     deif.e_dREN <= 0;
     deif.e_dWEN <= 0;
+    deif.e_datomic <= 0;
     deif.e_RegWrite <= 0;
     deif.e_halt <= 0;
     deif.e_rdat1 <= 0;
@@ -40,6 +41,7 @@ always_ff @ (posedge CLK, negedge nRST) begin
     deif.e_MemToReg <= deif.d_MemToReg;
     deif.e_dREN <= deif.d_dREN;
     deif.e_dWEN <= deif.d_dWEN;
+    deif.e_datomic <= deif.d_datomic;
     deif.e_RegWrite <= deif.d_RegWrite;
     deif.e_halt <= deif.d_halt;
     deif.e_rdat1 <= deif.d_rdat1;
@@ -62,6 +64,7 @@ always_ff @ (posedge CLK, negedge nRST) begin
     deif.e_MemToReg <= 0;
     deif.e_dREN <= 0;
     deif.e_dWEN <= 0;
+    deif.e_datomic <= 0;
     deif.e_RegWrite <= 0;
     deif.e_halt <= 0;
     deif.e_rdat1 <= 0;

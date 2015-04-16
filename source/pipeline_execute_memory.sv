@@ -15,6 +15,7 @@ always_ff @ (posedge CLK, negedge nRST) begin
     emif.m_MemToReg <= 0;
     emif.m_dREN <= 0;
     emif.m_dWEN <= 0;
+    emif.m_datomic <= 0;
     emif.m_RegWrite <= 0;
     emif.m_halt <= 0;
     emif.m_rdat1 <= 0;
@@ -38,6 +39,7 @@ always_ff @ (posedge CLK, negedge nRST) begin
     emif.m_MemToReg <= emif.e_MemToReg;
     emif.m_dREN <= emif.e_dREN;
     emif.m_dWEN <= emif.e_dWEN;
+    emif.m_datomic <= emif.e_datomic;
     emif.m_RegWrite <= emif.e_RegWrite;
     emif.m_halt <=  emif.e_halt;
     emif.m_rdat1 <= emif.e_rdat1;
@@ -60,6 +62,7 @@ always_ff @ (posedge CLK, negedge nRST) begin
     emif.m_MemToReg <= 0;
     emif.m_dREN <= 0;
     emif.m_dWEN <= 0;
+    emif.m_datomic <=0;
     emif.m_RegWrite <= 0;
     emif.m_halt <= 0;
     emif.m_rdat1 <= 0;

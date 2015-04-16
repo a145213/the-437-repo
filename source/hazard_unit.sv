@@ -42,7 +42,7 @@ module hazard_unit
   //assign huif.PC_WEN = 
   //          (huif.ihit & !huif.dhit) ||
   //          huif.jumping;
-  assign huif.PC_WEN = huif.ihit && !((huif.m_op == LW || huif.m_op == SW) && !huif.dhit);
+  assign huif.PC_WEN = huif.ihit && !((huif.m_op == LW || huif.m_op == SW || huif.m_op == LL || huif.m_op == SC) && !huif.dhit);
 
   //
   // Hazard detections
@@ -92,12 +92,12 @@ module hazard_unit
     
     // Takes care of getting multiple dhits
     // while waiting for an ihit
-    if ((huif.m_op == LW || huif.m_op == SW) && huif.dhit) begin
+    if ((huif.m_op == LW || huif.m_op == SW || huif.m_op == LL || huif.m_op == SC) && huif.dhit) begin
       huif.fd_state = (huif.ihit)?(PIPE_ENABLE):(PIPE_NOP);
       huif.de_state = PIPE_ENABLE;
       huif.em_state = PIPE_ENABLE;
       huif.mw_state = PIPE_ENABLE;
-    end else if ((huif.m_op == LW || huif.m_op == SW) && !huif.dhit) begin
+    end else if ((huif.m_op == LW || huif.m_op == SW || huif.m_op == LL || huif.m_op == SC) && !huif.dhit) begin
       //huif.fd_state = (huif.ihit)?(PIPE_ENABLE):(PIPE_STALL);
       huif.fd_state = PIPE_STALL;
       huif.de_state = PIPE_STALL;

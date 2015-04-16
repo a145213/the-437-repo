@@ -91,7 +91,6 @@ end
 // Next state logic
 always_comb begin
   nxt_state = state;
-  $display("CC: nxt_state = %s", nxt_state);
   casez(state)
     ARBITRATE: begin
       if ((dWEN[0] || dREN[0] || dWEN[1] || dREN[1])) begin

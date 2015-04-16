@@ -24,6 +24,7 @@ module control_unit
     cuif.check_zero = 0;
     cuif.check_overflow = 0;
     cuif.alu_op = ALU_ADD;
+    cuif.datomic = 0;
   
     if (cuif.opcode == RTYPE) begin
       cuif.RegDst = 0;
@@ -76,6 +77,8 @@ module control_unit
     cuif.dWEN = 0;
     cuif.dREN = 0;
     cuif.halt = 0;
+    cuif.datomic = 0;
+    
 
   casez (cuif.opcode)
     BEQ: begin
@@ -123,11 +126,27 @@ module control_unit
       cuif.iREN = 0;
       cuif.RegDst = 1;
     end
+    LL: begin
+       cuif.alu_op = ALU_ADD;
+       cuif.MemToReg = 0;
+       cuif.dREN = 1;
+       cuif.iREN = 0;
+       cuif.RegDst = 1;
+       cuif.datomic = 1;
+    end
     SW: begin
       cuif.alu_op = ALU_ADD;
       cuif.dWEN = 1;
       cuif.iREN = 0;
       cuif.RegWrite = 0;
+    end
+    SC: begin
+      cuif.alu_op = ALU_ADD;
+       cuif.dWEN = 1;
+       cuif.iREN = 0;
+       cuif.RegWrite = 0;
+       cuif.datomic = 1;
+       cuif.RegDst = 1;
     end
     HALT: begin
       cuif.halt = 1;

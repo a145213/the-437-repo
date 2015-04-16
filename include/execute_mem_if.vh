@@ -12,6 +12,7 @@ interface execute_mem_if;
   // Carry-Through Signals
   logic e_dREN, m_dREN;
   logic e_dWEN, m_dWEN;
+  logic e_datomic, m_datomic;
   logic e_RegWrite, m_RegWrite;
   logic e_halt, m_halt;
   logic e_check_zero, m_check_zero;
@@ -45,6 +46,7 @@ interface execute_mem_if;
             em_state,
             e_dREN,
             e_dWEN,
+	    e_datomic,
             e_RegWrite,
             e_halt,
             e_check_zero,
@@ -71,6 +73,7 @@ interface execute_mem_if;
     output 
             m_dREN,
             m_dWEN,
+	    m_datomic,
             m_RegWrite,
             m_halt,
             m_check_zero,

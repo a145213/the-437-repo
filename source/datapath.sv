@@ -210,7 +210,8 @@ module datapath (
   assign deif.d_shift_amt = rtype.shamt;
   assign deif.d_pc4 = fdif.d_pc4;
   assign deif.d_op = rtype.opcode;
-
+  assign deif.d_datomic = cuif.datomic;
+  
   //
   // Execute Logic
   //
@@ -287,14 +288,15 @@ module datapath (
   assign emif.e_dWEN = deif.e_dWEN;
   assign emif.e_RegWrite = deif.e_RegWrite;
   assign emif.e_op = deif.e_op;
-
+  assign emif.e_datomic = deif.e_datomic;
+  
   //
   // Memory Logic
   //
   //assign dpif.dmemstore = plif.rdat2_mem;
   assign dpif.dmemaddr = emif.m_port_o; 
   assign rfif.wsel = mwif.w_regWSEL;
-  assign dpif.datomic = 1'b0;
+  assign dpif.datomic = emif.m_datomic;
   
   assign dpif.dmemWEN = emif.m_dWEN;
   /*
