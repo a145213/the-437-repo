@@ -119,7 +119,7 @@ assign dp_write = (dcif.dmemWEN & !dcif.dmemREN);
 //assign set = (bus_hit)?(snoopaddr.idx):(daddr.idx);
 //assign set = (bus_hit)?(snoopaddr.idx):((cur_state = HALT)?(set_cntr):(daddr.idx));
 assign lru_block = sets[set].blocks[sets[set].lru];
-assign dirty = lru_block.dirty;
+//assign dirty = lru_block.dirty;
 
 // Variables for HALT state
 assign set_cntr = halt_cntr[4:2];
@@ -315,14 +315,23 @@ always_comb begin
 	set = pre_daddr.idx;
 	block_arb = block;
 	blkoff_arb = daddr.blkoff;
+	dirty = lru_block.dirty;
 	int_dhit = 
 				(
-				((pre_daddr.tag == sets[pre_daddr.idx].blocks[0].tag) && (sets[pre_daddr.idx].blocks[0].valid)) ||
-				((pre_daddr.tag == sets[pre_daddr.idx].blocks[1].tag) && (sets[pre_daddr.idx].blocks[1].valid))
-				) &&
-				(
-					(dp_write && dirty) ||
-					(dp_read)
+					(
+						(pre_daddr.tag == sets[pre_daddr.idx].blocks[0].tag) && 
+						(sets[pre_daddr.idx].blocks[0].valid) && 
+						(
+							(
+								dp_write && 
+								sets[pre_daddr.idx].blocks[0].dirty
+							) || 
+							(
+								dp_read
+							)
+						)
+					) ||
+					((pre_daddr.tag == sets[pre_daddr.idx].blocks[1].tag) && (sets[pre_daddr.idx].blocks[1].valid) && ((dp_write && sets[pre_daddr.idx].blocks[1].dirty) || (dp_read)))
 				)
 			;
 	dcif.dhit = int_dhit;
@@ -375,6 +384,12 @@ always_comb begin
 			nxt_daddr = pre_daddr;
 			nxt_snoopaddr = ccif.ccsnoopaddr[CPUID];
 
+			if (((pre_daddr.tag == sets[pre_daddr.idx].blocks[0].tag) && (sets[pre_daddr.idx].blocks[0].valid))) begin
+				dirty = sets[pre_daddr.idx].blocks[0].dirty;
+			end else if (((pre_daddr.tag == sets[pre_daddr.idx].blocks[1].tag) && (sets[pre_daddr.idx].blocks[1].valid))) begin
+				nxt_block = sets[pre_daddr.idx].blocks[1].dirty;
+			end
+
 			// Only do something if we have a valid command sent to the cache
 			// AND we have a dhit
 			if ((dp_write || dp_read) && int_dhit) begin
@@ -419,7 +434,7 @@ always_comb begin
 					set = pre_daddr.idx;
 					block_arb = nxt_block;
 					blkoff_arb = pre_daddr.blkoff;
-					nxt_link_valid = !(link_address == dcif.dmemaddr);
+					nxt_link_valid = (link_address == dcif.dmemaddr)?(1'b0):(link_valid);
 					//$display("P2C: m[%h] : c[%h:%h:%h] <= %h", dcif.dmemaddr, set, block_arb, blkoff, dcif.dmemstore);
 					// SC
 					if (dcif.datomic) begin
@@ -484,6 +499,8 @@ always_comb begin
 			blkoff_arb = blkoff;
 			block_arb = (dp_write && !sets[set].blocks[block].dirty && sets[set].blocks[block].valid)?(block):(sets[set].lru);
 			nxt_block = block_arb;
+			nxt_link_valid = (link_address == dcif.dmemaddr && !dcif.datomic)?(1'b0):(link_valid);
+			//nxt_link_valid = link_valid;
 			//block_arb = block;
 			//int_dhit = 1'b0;
 			//dcif.dhit = int_dhit;
@@ -641,6 +658,7 @@ always_comb begin
 			nxt_dirty = sets[set].blocks[block_arb].dirty;
 			nxt_valid = sets[set].blocks[block_arb].valid;
 			nxt_data = sets[set].blocks[block_arb].data[blkoff_arb];
+			nxt_link_valid = (link_address == snoopaddr && ccinv)?(1'b0):(link_valid);
 
 
 
@@ -682,6 +700,7 @@ always_comb begin
 				((snoopaddr.tag == sets[snoopaddr.idx].blocks[0].tag) && (sets[snoopaddr.idx].blocks[0].valid)) ||
 				((snoopaddr.tag == sets[snoopaddr.idx].blocks[1].tag) && (sets[snoopaddr.idx].blocks[1].valid))
 			;
+
 			
 			/*
 			bus_hit = 
@@ -699,7 +718,7 @@ always_comb begin
 			nxt_valid = sets[set].blocks[block_arb].valid;
 			ccif.dREN[CPUID] = 1'b0;
 			ccif.dWEN[CPUID] = 1'b1;
-			nxt_link_valid = !(link_address == snoopaddr);
+			nxt_link_valid = (link_address == snoopaddr && ccinv)?(1'b0):(link_valid);
 			//ccif.cctrans[CPUID] = 1'b0;
 			//ccif.ccwrite[CPUID] = 1'b1;
 			

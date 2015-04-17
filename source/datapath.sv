@@ -242,8 +242,11 @@ module datapath (
       aluif.port_a = deif.e_rdat1;
     end else if(huif.fsel_a == 1) begin
       aluif.port_a = reg_wdat;
+    end else if (huif.fsel_a == 3) begin
+      aluif.port_a = dpif.dmemload;
     end else begin
       aluif.port_a = (emif.m_MemToReg == 3)?(emif.m_lui):((emif.m_MemToReg == 0)?(dpif.dmemload):(emif.m_port_o));
+      
     end
   end
 

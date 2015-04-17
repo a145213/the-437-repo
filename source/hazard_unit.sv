@@ -137,7 +137,9 @@ module hazard_unit
   // ALU Port A Mux Select Logic
   //
   always_comb begin
-    if (haz_rs_mem) begin
+    if (haz_rs_mem && (huif.m_op == SC)) begin
+      huif.fsel_a = 2'd3;
+    end else if (haz_rs_mem) begin
       // Forward from memory stage
       huif.fsel_a = 2'd2;
     end else if (haz_rs_wb) begin
