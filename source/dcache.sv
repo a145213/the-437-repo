@@ -312,7 +312,7 @@ assign mem_ready = !dwait;
 assign pre_daddr = dcachef_t'(dcif.dmemaddr);//'
 
 always_comb begin
-	set = daddr.idx;
+	set = pre_daddr.idx;
 	block_arb = block;
 	blkoff_arb = daddr.blkoff;
 	int_dhit = 
@@ -442,12 +442,13 @@ always_comb begin
 							nxt_data = sets[pre_daddr.idx].blocks[nxt_block].data[pre_daddr.blkoff];
 						end
 					end
-
+					/*
 					int_dhit = 
 						((daddr.tag == sets[daddr.idx].blocks[0].tag) && (sets[daddr.idx].blocks[0].valid)) ||
 						((daddr.tag == sets[daddr.idx].blocks[1].tag) && (sets[daddr.idx].blocks[1].valid))
 					;
 					dcif.dhit = int_dhit;
+					*/
 				end
 			end else if(dp_write || dp_read) begin
 				// There was a miss, but still a valid command,
@@ -455,7 +456,7 @@ always_comb begin
 				// the alloc/wb state, the selected block to be
 				// the LRU block, and leave the hit counter alone.
 				nxt_hit_cntr = hit_cntr;
-				nxt_block = sets[set].lru;
+				nxt_block = (dp_write && !dirty && sets[set].blocks[block_arb].valid)?(block):(sets[set].lru);
 				block_arb = nxt_block;
 				nxt_blkoff = 1'b0;
 				ccif.cctrans[CPUID] = 1'b1;
@@ -481,6 +482,9 @@ always_comb begin
 		end
 		ALLOC_RD: begin
 			blkoff_arb = blkoff;
+			block_arb = (dp_write && !sets[set].blocks[block].dirty && sets[set].blocks[block].valid)?(block):(sets[set].lru);
+			nxt_block = block_arb;
+			//block_arb = block;
 			//int_dhit = 1'b0;
 			//dcif.dhit = int_dhit;
 
