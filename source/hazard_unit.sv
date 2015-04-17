@@ -169,7 +169,11 @@ module hazard_unit
   // Memory Store Mux Select Logic
   //
   always_comb begin
-    if (haz_rt_ex) begin
+    if (haz_rt_ex && (huif.m_op == SC)) begin
+      huif.fsel_sw = 2'd2;
+    end else if (haz_rt_ex && huif.w_op == SC && huif.m_op == SW) begin
+      huif.fsel_sw = 2'd2;
+    end else if (haz_rt_ex) begin
       huif.fsel_sw = 2'd1;
     end else if (haz_rt_wb) begin
       huif.fsel_sw = 2'd0;

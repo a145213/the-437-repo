@@ -182,15 +182,23 @@ always_comb begin
 	casez(cur_state)
 		IDLE: begin
 			casez(cop)
-				6'b100000: begin
+				6'b10????: begin
 					nxt_state = HALT;
 				end
+				6'b000101: begin
+					nxt_state = ALLOC_RD;
+				end
+				6'b000110: begin
+					nxt_state = ALLOC_RD;
+				end
+				/*
 				6'b001010: begin
 					nxt_state = ALLOC_WB;
 				end 
 				6'b000110: begin
 					nxt_state = ALLOC_WB;
 				end
+				*/
 				6'b000100: begin
 					nxt_state = ALLOC_RD;
 				end
@@ -203,7 +211,7 @@ always_comb begin
 				6'b011000: begin
 					nxt_state = ALLOC_RD_WAIT;
 				end
-				6'b01????: begin
+				6'b?1????: begin
 					nxt_state = SNOOP;
 				end
 				
@@ -293,7 +301,7 @@ always_comb begin
 end
 
 // Output logic
-assign dcif.dhit = int_dhit;
+//assign dcif.dhit = int_dhit;
 assign dcif.flushed = flushed;
 //assign int_dhit = 
 //			((daddr.tag == sets[daddr.idx].blocks[0].tag) && (sets[daddr.idx].blocks[0].valid)) ||
@@ -308,9 +316,16 @@ always_comb begin
 	block_arb = block;
 	blkoff_arb = daddr.blkoff;
 	int_dhit = 
-		((daddr.tag == sets[daddr.idx].blocks[0].tag) && (sets[daddr.idx].blocks[0].valid)) ||
-		((daddr.tag == sets[daddr.idx].blocks[1].tag) && (sets[daddr.idx].blocks[1].valid))
-	;
+				(
+				((pre_daddr.tag == sets[pre_daddr.idx].blocks[0].tag) && (sets[pre_daddr.idx].blocks[0].valid)) ||
+				((pre_daddr.tag == sets[pre_daddr.idx].blocks[1].tag) && (sets[pre_daddr.idx].blocks[1].valid))
+				) &&
+				(
+					(dp_write && dirty) ||
+					(dp_read)
+				)
+			;
+	dcif.dhit = int_dhit;
 
 	ccif.dREN[CPUID] = 1'b0;
 	ccif.dWEN[CPUID] = 1'b0;
@@ -346,6 +361,9 @@ always_comb begin
 				((snoopaddr.tag == sets[snoopaddr.idx].blocks[1].tag) && (sets[snoopaddr.idx].blocks[1].valid))
 			;
 	nxt_snoopaddr = ccif.ccsnoopaddr[CPUID];
+
+	nxt_link_address = link_address;
+	nxt_link_valid = link_valid;
 	
 	casez(cur_state)
 		IDLE: begin
@@ -356,18 +374,14 @@ always_comb begin
 			nxt_quick_hit = 1'b1;
 			nxt_daddr = pre_daddr;
 			nxt_snoopaddr = ccif.ccsnoopaddr[CPUID];
-			int_dhit = 
-				((pre_daddr.tag == sets[pre_daddr.idx].blocks[0].tag) && (sets[pre_daddr.idx].blocks[0].valid)) ||
-				((pre_daddr.tag == sets[pre_daddr.idx].blocks[1].tag) && (sets[pre_daddr.idx].blocks[1].valid))
-			;
 
 			// Only do something if we have a valid command sent to the cache
 			// AND we have a dhit
 			if ((dp_write || dp_read) && int_dhit) begin
 				// Least Recently Used (LRU) detection
-				if (pre_daddr.tag == sets[pre_daddr.idx].blocks[0].tag) begin
+				if ((pre_daddr.tag == sets[pre_daddr.idx].blocks[0].tag) && (sets[pre_daddr.idx].blocks[0].valid)) begin
 					nxt_lru = 1'b1;
-				end else if (pre_daddr.tag == sets[pre_daddr.idx].blocks[1].tag) begin
+				end else if (((pre_daddr.tag == sets[pre_daddr.idx].blocks[1].tag) && (sets[pre_daddr.idx].blocks[1].valid))) begin
 					nxt_lru = 1'b0;
 				end
 				
@@ -376,9 +390,9 @@ always_comb begin
 				
 				
 				// Select the appropriate block
-				if (pre_daddr.tag == sets[pre_daddr.idx].blocks[0].tag) begin
+				if (((pre_daddr.tag == sets[pre_daddr.idx].blocks[0].tag) && (sets[pre_daddr.idx].blocks[0].valid))) begin
 					nxt_block = 1'b0;
-				end else if (pre_daddr.tag == sets[pre_daddr.idx].blocks[1].tag) begin
+				end else if (((pre_daddr.tag == sets[pre_daddr.idx].blocks[1].tag) && (sets[pre_daddr.idx].blocks[1].valid))) begin
 					nxt_block = 1'b1;
 				end
 				
@@ -389,8 +403,13 @@ always_comb begin
 					// - Address index (daddr.idx)
 					// - Block that matches tag (nxt_block_sel)
 					// - Address block offset (daddr.blkoff)
-					dcif.dmemload = sets[pre_daddr.idx].blocks[block].data[pre_daddr.blkoff];
+					dcif.dmemload = sets[pre_daddr.idx].blocks[nxt_block].data[pre_daddr.blkoff];
 					//$display("C2P: m[%h] : c[%h:%h:%h] = %h", dcif.dmemaddr, set, block_arb, blkoff, dcif.dmemload);
+					// LL
+					if (dcif.datomic) begin
+						nxt_link_address = dcif.dmemaddr;
+						nxt_link_valid = 1'b1;
+					end
 				end else if (dp_write) begin
 					// Write data to cache
 					nxt_data = dcif.dmemstore;
@@ -400,7 +419,35 @@ always_comb begin
 					set = pre_daddr.idx;
 					block_arb = nxt_block;
 					blkoff_arb = pre_daddr.blkoff;
+					nxt_link_valid = !(link_address == dcif.dmemaddr);
 					//$display("P2C: m[%h] : c[%h:%h:%h] <= %h", dcif.dmemaddr, set, block_arb, blkoff, dcif.dmemstore);
+					// SC
+					if (dcif.datomic) begin
+						// Compare link register and incoming address and
+						// test valid bit
+						if (link_address == dcif.dmemaddr && link_valid) begin
+							// If successful store like normal
+							nxt_data = dcif.dmemstore;
+							nxt_dirty = 1'b1;
+							nxt_valid = 1'b1;
+							nxt_tag = pre_daddr.tag;
+							set = pre_daddr.idx;
+							block_arb = nxt_block;
+							blkoff_arb = pre_daddr.blkoff;
+							dcif.dmemload = 32'h00000001;
+							nxt_link_valid = 1'b0;
+						end else if (!link_valid) begin
+							// Else return with failure
+							dcif.dmemload = 32'h00000000;
+							nxt_data = sets[pre_daddr.idx].blocks[nxt_block].data[pre_daddr.blkoff];
+						end
+					end
+
+					int_dhit = 
+						((daddr.tag == sets[daddr.idx].blocks[0].tag) && (sets[daddr.idx].blocks[0].valid)) ||
+						((daddr.tag == sets[daddr.idx].blocks[1].tag) && (sets[daddr.idx].blocks[1].valid))
+					;
+					dcif.dhit = int_dhit;
 				end
 			end else if(dp_write || dp_read) begin
 				// There was a miss, but still a valid command,
@@ -416,41 +463,14 @@ always_comb begin
 				ccif.dWEN[CPUID] = 1'b0;
 			end
 
-			// LL
-			if (dcif.datomic && dp_read) begin
-				nxt_link_address = dcif.dmemaddr;
-				nxt_link_valid = 1'b1;
-			end else begin
-				nxt_link_address = link_address;
-				nxt_link_valid = link_valid;
-			end
-
-			// SC
-			if (dcif.datomic && dp_write) begin
-				// Compare link register and incoming address and
-				// test valid bit
-				if (link_address == dcif.dmemaddr && link_valid) begin
-					// If successful store like normal
-					nxt_data = dcif.dmemstore;
-					nxt_dirty = 1'b1;
-					nxt_valid = 1'b1;
-					nxt_tag = pre_daddr.tag;
-					set = pre_daddr.idx;
-					block_arb = nxt_block;
-					blkoff_arb = pre_daddr.blkoff;
-					dcif.dmemload = 32'h00000001;
-				end else begin
-					// Else return with failure
-					dcif.dmemload = 32'h00000000;
-				end
-			end
-
 			if (ccwait) begin
 				set = snoopaddr.idx;
 				block_arb = nxt_block;
 				nxt_snoopaddr = ccif.ccsnoopaddr[CPUID];
 				nxt_valid = sets[set].blocks[block_arb].valid;
 				nxt_tag = sets[set].blocks[block_arb].tag;
+				nxt_dirty = sets[set].blocks[block_arb].dirty;
+				nxt_data = sets[set].blocks[block_arb].data[blkoff_arb];
 			end
 		end
 		ALLOC_RD_WAIT: begin
@@ -461,7 +481,8 @@ always_comb begin
 		end
 		ALLOC_RD: begin
 			blkoff_arb = blkoff;
-			int_dhit = 1'b0;
+			//int_dhit = 1'b0;
+			//dcif.dhit = int_dhit;
 
 			// Send address and REN/WEN to memory controller
 			ccif.daddr[CPUID] = {daddr.tag, daddr.idx, off_read[0], 2'b00};
@@ -488,7 +509,7 @@ always_comb begin
 					nxt_blkoff = daddr.blkoff;
 					nxt_tag = daddr.tag;
 					nxt_valid = 1'b1;
-					nxt_dirty = 1'b0;
+					nxt_dirty = dp_write;
 					//nxt_data = sets[set].blocks[block_arb].data[blkoff_arb];
 
 				end else if (off_read == WORDS_PER_BLK-2) begin
@@ -615,6 +636,7 @@ always_comb begin
 			nxt_tag = sets[set].blocks[block_arb].tag;
 			nxt_dirty = sets[set].blocks[block_arb].dirty;
 			nxt_valid = sets[set].blocks[block_arb].valid;
+			nxt_data = sets[set].blocks[block_arb].data[blkoff_arb];
 
 
 
@@ -673,6 +695,7 @@ always_comb begin
 			nxt_valid = sets[set].blocks[block_arb].valid;
 			ccif.dREN[CPUID] = 1'b0;
 			ccif.dWEN[CPUID] = 1'b1;
+			nxt_link_valid = !(link_address == snoopaddr);
 			//ccif.cctrans[CPUID] = 1'b0;
 			//ccif.ccwrite[CPUID] = 1'b1;
 			

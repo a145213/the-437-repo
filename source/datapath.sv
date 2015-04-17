@@ -332,6 +332,7 @@ module datapath (
       // Need to figure out how this works
       // Fix for mergesort
       dpif.dmemstore = mwif.m_rdat2;
+      //dpif.dmemstore = mwif.w_rdat2;
     end else begin
       dpif.dmemstore = mwif.w_dmemload;
     end
