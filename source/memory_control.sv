@@ -243,6 +243,7 @@ always_comb begin
           //ccif.ccinv[nxt_target] = ccwrite[nxt_initiator];
           //nxt_snoopaddr = daddr[nxt_initiator];
           //ccif.ccsnoopaddr[nxt_target] = nxt_snoopaddr;
+          
         end
         nxt_snoopaddr = daddr[nxt_initiator];
 
@@ -273,6 +274,7 @@ always_comb begin
       // Snoop
       ccif.ccinv[target] = ccwrite[initiator];
       ccif.ccsnoopaddr[target] = snoopaddr;
+      nxt_snoopaddr = daddr[nxt_initiator];
     end
     SNOOP: begin
       
@@ -283,6 +285,7 @@ always_comb begin
       // Snoop
       ccif.ccinv[target] = ccwrite[initiator];
       ccif.ccsnoopaddr[target] = snoopaddr;
+      nxt_snoopaddr = daddr[nxt_initiator];
       
     end
     BUS_RDX: begin
@@ -290,11 +293,10 @@ always_comb begin
       ccif.ccwait[initiator] = 1'b0;
       ccif.ccwait[target] = 1'b1;
 
-      if (ccwrite[initiator]) begin
-        ccif.ccinv[target] = 1'b1;
-      end
-      nxt_snoopaddr = daddr[nxt_initiator];
+      // Snoop
+      ccif.ccinv[target] = ccwrite[initiator];
       ccif.ccsnoopaddr[target] = snoopaddr;
+      nxt_snoopaddr = daddr[nxt_initiator];
 
       // Cache-to-cache cctransfer w/ WB
       ccif.ramWEN = dWEN[target];
@@ -319,6 +321,11 @@ always_comb begin
       // Grant
       ccif.ccwait[initiator] = 1'b0;
       ccif.ccwait[target] = 1'b1;
+      // Snoop
+      ccif.ccinv[target] = ccwrite[initiator];
+      ccif.ccsnoopaddr[target] = snoopaddr;
+      nxt_snoopaddr = daddr[nxt_initiator];
+
       // Get data from memory
       ccif.ramWEN = dWEN[initiator];
       ccif.ramREN = dREN[initiator];

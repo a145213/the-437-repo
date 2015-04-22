@@ -63,7 +63,7 @@ ori $sp, $zero, 0x7FFC
 # sum register
 ori $s0, $0, 0x0000
 # min register
-ori $s1, $0, 0x0000
+ori $s1, $0, 0xFFFF
 # max register
 ori $s2, $0, 0x0000
 # counter
@@ -94,30 +94,32 @@ lifo_poped:
   jal unlock
 
   # compute min
-  ori $a0, $s1, 0
-  ori $a1, $s5, 0
+  ori $a0, $s1, 0x0000
+  andi $a1, $s5, 0x0000FFFF
   jal min
   ori $s1, $v0, 0
   # compute max
   ori $a0, $s2, 0
-  ori $a1, $s5, 0
+  andi $a1, $s5, 0x0000FFFF
   jal max
   ori $s2, $v0, 0
   # compute sum
-  or $s0, $s0, $s5
+  andi $a1, $s5, 0x0000FFFF
+  addu $s0, $s0, $a1
 
   # increment the counter
   addiu $s3, $s3, 1
-  ori $t0, $0, 255
+  ori $t0, $0, 0x00000100
   beq $s3, $t0, consumer_done
   j consumer
 
 consumer_done:
   # calculate average
-  ori $a0, $s0, 0
-  ori $a1, $0, 256
-  jal divide
-  ori $s4, $v0, 0
+  andi $a0, $s0, 0x0000FFFF
+  #ori $a1, $0, 0x00000100
+  #jal divide
+  #ori $s4, $v0, 0
+  srl $s4, $s0, 0x08
   halt
 
 #######################################################
@@ -126,49 +128,50 @@ consumer_done:
 #
 #######################################################
 push_lifo:
-  ori $8, $0, lifo
+  ori $t0, $0, lifo
   # initialize head pointer
-  ori $9, $0, lifo_head
+  ori $t1, $0, lifo_head
   # load LIFO head pointer value
-  lw  $10, 0($9)
+  lw  $t2, 0($t1)
   # initialize tail pointer
-  ori $11, $0, lifo_tail
-  #lw  $12, 0($11)
+  ori $t3, $0, lifo_tail
+  #lw  $t4, 0($t3)
 
   # compare head and tail pointer. if head == tail, full
   # return $v0 with 1 if LIFO is full
-  bne $10, $11, execute_push
+  bne $t2, $t3, execute_push
   ori $v0, $0, 1
   jr  $ra
 
 execute_push:
   # push the value a0 to the LIFO and update the head pointer
   # return $v0 with 0 if success
-  addi $10, $10, 4
-  sw  $a0, 0($10)
-  sw  $10, 0($9)
+  addi $t2, $t2, 4
+  sw  $a0, 0($t2)
+  sw  $t2, 0($t1)
   ori $v0, $0, 0
   jr  $ra
 
 pop_lifo:
-  ori $8, $0, lifo
+  ori $t0, $0, lifo
   # initialize head pointer
-  ori $9, $0, lifo_head
+  ori $t1, $0, lifo_head
   # load LIFO head pointer
-  lw  $10, 0($9)
-  # store LIFO tail pointer
-  ori $11, $0, lifo
+  lw  $t2, 0($t1)
+  # store LIFO pointer
+  ori $t3, $0, lifo_tail
   #lw  $12, 0($11)
  
   # check if LIFO is empty, return $v0 with 1 if it's empty
-  bne $10, $11, execute_pop
+  bne $t2, $t0, execute_pop
   ori $v0, $0, 1
   jr  $ra
 
 execute_pop:
-  or $s5, $0, $10
-  addi $10, $10, -4
-  sw  $10, 0($9)
+  lw $s5, 0($t2)
+  #or $s5, $0, $t2
+  addi $t2, $t2, -4
+  sw  $t2, 0($t1)
   ori $v0, $0, 0
   jr $ra
 

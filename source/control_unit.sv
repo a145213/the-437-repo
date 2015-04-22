@@ -98,10 +98,16 @@ module control_unit
       cuif.check_zero = 1;
     end
     ADDI: begin
-      cuif.alu_op = ALU_ADD;;
-      cuif.ExtOp = 0;
+      cuif.alu_op = ALU_ADD;
+      cuif.ExtOp = 1;
       cuif.check_zero = 0;
       cuif.check_overflow = 1;
+    end
+    ANDI: begin
+      cuif.alu_op = ALU_AND;
+      cuif.ExtOp = 0;
+      cuif.check_zero = 0;
+      cuif.check_overflow = 0;
     end
     ADDIU: cuif.alu_op = ALU_ADD;
     SLTI: cuif.alu_op = ALU_SLT;

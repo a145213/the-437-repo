@@ -12,7 +12,9 @@ module dcache #(
 (
   input CLK, nRST,
   datapath_cache_if.dcache dcif,
-  cache_control_if.dcache ccif
+  cache_control_if ccif
+  //datapath_cache_if.cache dcif,
+  //cache_control_if.caches ccif
 );
 
   // import types
@@ -387,7 +389,9 @@ always_comb begin
 			if (((pre_daddr.tag == sets[pre_daddr.idx].blocks[0].tag) && (sets[pre_daddr.idx].blocks[0].valid))) begin
 				dirty = sets[pre_daddr.idx].blocks[0].dirty;
 			end else if (((pre_daddr.tag == sets[pre_daddr.idx].blocks[1].tag) && (sets[pre_daddr.idx].blocks[1].valid))) begin
-				nxt_block = sets[pre_daddr.idx].blocks[1].dirty;
+				dirty = sets[pre_daddr.idx].blocks[1].dirty;
+			end else begin
+				dirty = 1'b0;
 			end
 
 			// Only do something if we have a valid command sent to the cache
@@ -424,6 +428,7 @@ always_comb begin
 					if (dcif.datomic) begin
 						nxt_link_address = dcif.dmemaddr;
 						nxt_link_valid = 1'b1;
+						nxt_dirty = 1'b0;
 					end
 				end else if (dp_write) begin
 					// Write data to cache
@@ -454,6 +459,7 @@ always_comb begin
 						end else if (!link_valid) begin
 							// Else return with failure
 							dcif.dmemload = 32'h00000000;
+							nxt_dirty = (dcif.datomic)?(sets[pre_daddr.idx].blocks[nxt_block].dirty):(dp_write);
 							nxt_data = sets[pre_daddr.idx].blocks[nxt_block].data[pre_daddr.blkoff];
 						end
 					end
@@ -497,7 +503,14 @@ always_comb begin
 		end
 		ALLOC_RD: begin
 			blkoff_arb = blkoff;
-			block_arb = (dp_write && !sets[set].blocks[block].dirty && sets[set].blocks[block].valid)?(block):(sets[set].lru);
+			
+			if ((daddr.tag == sets[daddr.idx].blocks[0].tag) && (sets[daddr.idx].blocks[0].valid) && !(sets[daddr.idx].blocks[0].dirty)) begin
+				block_arb = 1'b0;
+			end else if ((daddr.tag == sets[daddr.idx].blocks[1].tag) && (sets[daddr.idx].blocks[1].valid) && !(sets[daddr.idx].blocks[1].dirty)) begin
+				block_arb = 1'b1;
+			end
+			//block_arb = (dp_write && !sets[set].blocks[block].dirty && sets[set].blocks[block].valid)?(block):(sets[set].lru);
+			
 			nxt_block = block_arb;
 			nxt_link_valid = (link_address == dcif.dmemaddr && !dcif.datomic)?(1'b0):(link_valid);
 			//nxt_link_valid = link_valid;
@@ -511,7 +524,7 @@ always_comb begin
 			ccif.dREN[CPUID] = 1'b1;
 			ccif.dWEN[CPUID] = 1'b0;
 			ccif.cctrans[CPUID] = 1'b1;
-			ccif.ccwrite[CPUID] = dcif.dmemWEN;
+			ccif.ccwrite[CPUID] = (dcif.datomic)?(dcif.dmemWEN && link_valid):(dcif.dmemWEN);
 
 			// Wait for memory to be readable
 			if (mem_ready) begin
@@ -530,11 +543,11 @@ always_comb begin
 					nxt_blkoff = daddr.blkoff;
 					nxt_tag = daddr.tag;
 					nxt_valid = 1'b1;
-					nxt_dirty = dp_write;
+					nxt_dirty = 1'b1;
 					//nxt_data = sets[set].blocks[block_arb].data[blkoff_arb];
 
 				end else if (off_read == WORDS_PER_BLK-2) begin
-					ccif.cctrans[CPUID] = 1'b0;
+					//ccif.cctrans[CPUID] = 1'b0;
 				end
 
 				//$display("M2C: c[%h:%h:%h] <= %h = m[%h]", set, block_arb, blkoff, ccif.dload, ccif.daddr);
@@ -546,6 +559,7 @@ always_comb begin
 				nxt_dirty = sets[set].blocks[block_arb].dirty;
 				nxt_blkoff = blkoff;
 			end
+
 		end
 		ALLOC_WB: begin
 			// Send address, data, and REN/WEN to memory controller
@@ -648,7 +662,20 @@ always_comb begin
 			ccif.ccwrite[CPUID] = 1'b1;
 		end
 		SNOOP: begin
+			int_dhit = 1'b0;
+			dcif.dhit = int_dhit;
 			set = snoopaddr.idx;
+
+
+			// Select the appropriate block
+			/*
+			if (((snoopaddr.tag == sets[snoopaddr.idx].blocks[0].tag) && (sets[snoopaddr.idx].blocks[0].valid))) begin
+				nxt_block = 1'b0;
+			end else if (((snoopaddr.tag == sets[snoopaddr.idx].blocks[1].tag) && (sets[snoopaddr.idx].blocks[1].valid))) begin
+				nxt_block = 1'b1;
+			end
+			*/
+			nxt_block = block;
 			block_arb = nxt_block;
 			nxt_snoopaddr = ccif.ccsnoopaddr[CPUID];
 
@@ -660,9 +687,6 @@ always_comb begin
 			nxt_data = sets[set].blocks[block_arb].data[blkoff_arb];
 			nxt_link_valid = (link_address == snoopaddr && ccinv)?(1'b0):(link_valid);
 
-
-
-
 			//snoopaddr = dcachef_t'(ccif.ccsnoopaddr[CPUID]);//'
 			bus_hit = 
 				((snoopaddr.tag == sets[snoopaddr.idx].blocks[0].tag) && (sets[snoopaddr.idx].blocks[0].valid)) ||
@@ -671,9 +695,9 @@ always_comb begin
 			if (bus_hit) begin
 				//nxt_valid = !ccinv;
 				nxt_blkoff = snoopaddr.blkoff;
-				if (snoopaddr.tag == sets[snoopaddr.idx].blocks[0].tag) begin
+				if (snoopaddr.tag == sets[snoopaddr.idx].blocks[0].tag && (sets[snoopaddr.idx].blocks[0].valid)) begin
 					nxt_block = 1'b0;
-				end else if (snoopaddr.tag == sets[snoopaddr.idx].blocks[1].tag) begin
+				end else if (snoopaddr.tag == sets[snoopaddr.idx].blocks[1].tag && (sets[snoopaddr.idx].blocks[1].valid)) begin
 					nxt_block = 1'b1;
 				end
 				block_arb = nxt_block;
@@ -684,6 +708,7 @@ always_comb begin
 				nxt_tag = sets[set].blocks[block_arb].tag;
 				nxt_dirty = sets[set].blocks[block_arb].dirty;
 				nxt_valid = sets[set].blocks[block_arb].valid;
+				ccif.daddr[CPUID] = {sets[set].blocks[block_arb].tag, set, 1'b0, 2'b00};
 			end else if (!ccwait) begin
 				nxt_data = sets[set].blocks[block_arb].data[blkoff_arb];
 			end else begin
@@ -692,6 +717,8 @@ always_comb begin
 			end
 		end
 		BUS_WB: begin
+			int_dhit = 1'b0;
+			dcif.dhit = int_dhit;
 			set = snoopaddr.idx;
 			//block_arb = nxt_block;
 			nxt_halt_cntr = halt_cntr;
@@ -749,9 +776,10 @@ always_comb begin
 				ccif.dREN[CPUID] = 1'b0;
 				ccif.dWEN[CPUID] = 1'b0;
 				ccif.ccwrite[CPUID] = 1'b0;
+
 				//blkoff_arb = word_cntr;
 			end else if (ccwait) begin
-
+				nxt_data = sets[set].blocks[block_arb].data[blkoff_arb];
 			end
 
 			//$display("C2M: c[%h:%h:%h] = %h => m[%h]", set, block_arb, blkoff, ccif.dstore, ccif.daddr);

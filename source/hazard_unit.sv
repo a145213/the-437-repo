@@ -131,7 +131,7 @@ module hazard_unit
   assign haz_rs_mem = (huif.e_rs != 0) && (huif.m_wsel == huif.e_rs);
   assign haz_rt_mem = (huif.e_rt != 0) && (huif.m_wsel == huif.e_rt);
   assign haz_rs_wb = (huif.e_rs != 0) && (huif.w_wsel == huif.e_rs);
-  assign haz_rt_wb = (huif.e_rt != 0) && (huif.w_wsel == huif.e_rt);
+  assign haz_rt_wb = (huif.e_rt != 0) && (huif.w_wsel == huif.e_rt) && (huif.w_op != SW);
 
   //
   // ALU Port A Mux Select Logic
